@@ -1,0 +1,19 @@
+# Ambiente virtual e cache do Python
+.venv/
+__pycache__/
+*.pyc
+
+# Segredos locais — nunca commitar
+.env
+
+# Banco local e uploads locais
+db.sqlite3
+media/
+
+# Arquivos estáticos coletados (gerados no build, não precisam ir pro Git)
+staticfiles/
+
+# Editor / SO
+.vscode/
+.idea/
+.DS_Store

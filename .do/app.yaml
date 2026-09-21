@@ -1,0 +1,54 @@
+# Especificação opcional do App Platform (App Spec).
+#
+# Você NÃO precisa deste arquivo para publicar: dá para criar o app
+# clicando pelo painel, como no passo a passo que já vimos. Ele existe
+# para quem preferir versionar a configuração do app junto com o
+# código, ou recriar o app do zero rapidamente.
+#
+# Ajuste "repo" para o seu usuário/organização e repositório antes de
+# usar. Depois é só: painel > Create > Apps > Edit Your App Spec, ou
+# `doctl apps create --spec .do/app.yaml` pela CLI.
+name: cursinho-questoes
+region: nyc
+services:
+  - name: web
+    github:
+      repo: SEU_USUARIO/SEU_REPOSITORIO
+      branch: main
+      deploy_on_push: true
+    environment_slug: python
+    instance_size_slug: apps-s-1vcpu-0.5gb
+    instance_count: 1
+    http_port: 8080
+    build_command: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    run_command: gunicorn config.wsgi:application --bind 0.0.0.0:8080
+    routes:
+      - path: /
+    envs:
+      - key: DJANGO_SECRET_KEY
+        type: SECRET
+        value: "TROQUE_POR_UMA_CHAVE_ALEATORIA"
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DJANGO_ALLOWED_HOSTS
+        value: "${APP_DOMAIN}"
+      - key: DJANGO_CSRF_TRUSTED_ORIGINS
+        value: "https://${APP_DOMAIN}"
+      - key: DATABASE_URL
+        value: "${db.DATABASE_URL}"
+      - key: SPACES_ACCESS_KEY_ID
+        type: SECRET
+        value: ""
+      - key: SPACES_SECRET_ACCESS_KEY
+        type: SECRET
+        value: ""
+      - key: SPACES_BUCKET_NAME
+        value: ""
+      - key: SPACES_REGION
+        value: "nyc3"
+
+databases:
+  - name: db
+    engine: PG
+    production: true
+    cluster_name: SEU_CLUSTER_JA_CRIADO

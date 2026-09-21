@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Banco de Questões{% endblock %}</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      max-width: 720px;
+      margin: 4rem auto;
+      padding: 0 1.5rem;
+      color: #1a1a1a;
+      line-height: 1.5;
+    }
+    h1 { font-size: 1.5rem; }
+    .card {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 1.25rem;
+      margin: 1rem 0;
+    }
+    .ok { color: #0a7d2c; }
+    .erro { color: #b00020; }
+    nav a { margin-right: 1rem; }
+    form p { margin: 0.75rem 0; }
+    label { display: block; margin-bottom: 0.25rem; font-weight: 600; }
+    input[type=text], input[type=password] {
+      width: 100%; padding: 0.5rem; box-sizing: border-box;
+    }
+    button {
+      padding: 0.5rem 1rem; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    {% if user.is_authenticated %}
+      <a href="{% url 'core:home' %}">Início</a>
+      <a href="{% url 'core:painel' %}">Painel</a>
+      <a href="{% url 'core:logout' %}">Sair ({{ user }})</a>
+    {% else %}
+      <a href="{% url 'core:home' %}">Início</a>
+      <a href="{% url 'core:login' %}">Entrar</a>
+    {% endif %}
+  </nav>
+  <hr>
+  {% block content %}{% endblock %}
+</body>
+</html>
