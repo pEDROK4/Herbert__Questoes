@@ -1,0 +1,30 @@
+{% extends "core/layout_publico.html" %}
+{% load core_icons %}
+{% block title %}Cadastre uma nova senha — Banco de Questões{% endblock %}
+{% block conteudo_publico %}
+  <h1 style="font-size: 1.2rem; margin-top: 0;">Cadastre uma nova senha</h1>
+  <p class="texto-suave" style="font-size: 0.9rem; margin-top: -0.5rem;">
+    Este é seu primeiro acesso com a senha genérica. Por segurança, cadastre uma senha
+    só sua antes de continuar.
+  </p>
+
+  {% if form.errors %}
+    <p class="erro" style="font-size: 0.9rem;">
+      {% for campo in form %}{% for erro in campo.errors %}{{ erro }} {% endfor %}{% endfor %}
+      {% for erro in form.non_field_errors %}{{ erro }} {% endfor %}
+    </p>
+  {% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+    <p>
+      <label for="{{ form.new_password1.id_for_label }}">Nova senha</label>
+      {{ form.new_password1 }}
+    </p>
+    <p>
+      <label for="{{ form.new_password2.id_for_label }}">Confirme a nova senha</label>
+      {{ form.new_password2 }}
+    </p>
+    <button type="submit" style="width: 100%; margin-top: 0.5rem;">Salvar nova senha</button>
+  </form>
+{% endblock %}

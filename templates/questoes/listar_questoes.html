@@ -1,0 +1,151 @@
+{% extends "core/layout_painel.html" %}
+{% load core_icons static %}
+{% block title %}Ver questões — Banco de Questões{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'vendor/katex/katex.min.css' %}">
+  <style>
+    .questao-card { padding: 1.25rem; margin-bottom: 1rem; }
+    .questao-meta { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin-bottom: 0.9rem; }
+    .questao-enunciado img { max-width: 100%; border-radius: 6px; margin: 0.5rem 0; display: block; }
+    .questao-enunciado p { margin: 0.4rem 0; }
+    .lista-alternativas { list-style: none; padding: 0; margin: 0.9rem 0 0; }
+    .lista-alternativas li {
+      padding: 0.5rem 0.7rem;
+      border-radius: 6px;
+      margin-bottom: 0.35rem;
+      background: var(--cor-fundo);
+      font-size: 0.9rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    .lista-alternativas li.correta { background: #e6f7ec; color: var(--cor-sucesso); font-weight: 600; }
+    .grade-filtros { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; align-items: end; }
+    .grade-filtros .campo { margin-bottom: 0; }
+    .paginacao { display: flex; gap: 1rem; justify-content: center; align-items: center; margin-top: 1.5rem; font-size: 0.9rem; }
+  </style>
+{% endblock %}
+
+{% block conteudo_painel %}
+  <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+    <div>
+      <h1 style="font-size: 1.4rem; margin-top: 0; margin-bottom: 0.15rem;">Ver questões</h1>
+      <p class="texto-suave" style="margin-top: 0;">
+        {{ pagina.paginator.count }} questão{{ pagina.paginator.count|pluralize }} no banco, de todas as disciplinas e todos os professores.
+      </p>
+    </div>
+    <a href="{% url 'core:questoes_adicionar' %}" class="botao" style="display: inline-flex; align-items: center; gap: 0.4rem;">
+      {% icone "plus" 18 %} Adicionar questão
+    </a>
+  </div>
+
+  <form method="get" class="cartao" style="padding: 1.25rem; margin-top: 1.25rem;">
+    <div class="grade-filtros">
+      <div class="campo">
+        <label for="filtro-disciplina">Disciplina</label>
+        <select name="disciplina" id="filtro-disciplina">
+          <option value="">Todas</option>
+          {% for disciplina in disciplinas %}
+            <option value="{{ disciplina.pk }}" {% if filtros.disciplina == disciplina.pk|stringformat:"s" %}selected{% endif %}>
+              {{ disciplina.nome }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="campo">
+        <label for="filtro-assunto">Assunto</label>
+        <select name="assunto" id="filtro-assunto">
+          <option value="">Todos</option>
+          {% for grupo, lista in assuntos_agrupados.items %}
+            <optgroup label="{{ grupo }}">
+              {% for assunto in lista %}
+                <option value="{{ assunto.pk }}" {% if filtros.assunto == assunto.pk|stringformat:"s" %}selected{% endif %}>
+                  Aula {{ assunto.aula }} — {{ assunto.nome }}
+                </option>
+              {% endfor %}
+            </optgroup>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="campo">
+        <label for="filtro-busca">Buscar no enunciado</label>
+        <input type="text" name="busca" id="filtro-busca" value="{{ filtros.busca }}" placeholder="Ex: função quadrática">
+      </div>
+
+      <div class="campo">
+        <button type="submit" style="width: 100%;">Filtrar</button>
+      </div>
+    </div>
+
+    {% if tem_filtro_ativo %}
+      <p style="margin: 0.75rem 0 0;">
+        <a href="{% url 'core:questoes_listar' %}" class="texto-suave">Limpar filtros</a>
+      </p>
+    {% endif %}
+  </form>
+
+  <div style="margin-top: 1.25rem;">
+    {% for questao in pagina %}
+      <article class="cartao questao-card">
+        <div class="questao-meta">
+          <span class="badge badge-neutro">{{ questao.disciplina.nome }} — {{ questao.assunto.frente.nome }}</span>
+          <span class="badge badge-neutro">{{ questao.assunto.nome }}</span>
+          {% if questao.autoria_propria %}
+            <span class="badge badge-neutro">Autoria própria</span>
+          {% elif questao.banca or questao.ano or questao.prova %}
+            <span class="badge badge-neutro">
+              {{ questao.banca }}{% if questao.ano %} — {{ questao.ano }}{% endif %}{% if questao.prova %} — {{ questao.prova }}{% endif %}
+            </span>
+          {% endif %}
+        </div>
+
+        <div class="questao-enunciado">{{ questao.enunciado|safe }}</div>
+
+        <ul class="lista-alternativas">
+          {% for alternativa in questao.alternativas.all %}
+            <li class="{% if alternativa.correta %}correta{% endif %}">
+              <strong>{{ alternativa.letra }})</strong>
+              <span>{{ alternativa.texto }}</span>
+              {% if alternativa.correta %}{% icone "check-circle" 16 %}{% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+
+        <p class="texto-suave" style="font-size: 0.8rem; margin-top: 0.9rem; margin-bottom: 0;">
+          Cadastrada por {{ questao.autor }} em {{ questao.criado_em|date:"d/m/Y" }}
+        </p>
+      </article>
+    {% empty %}
+      <p class="texto-suave" style="margin-top: 1rem;">Nenhuma questão encontrada com esses filtros.</p>
+    {% endfor %}
+  </div>
+
+  {% if pagina.paginator.num_pages > 1 %}
+    <nav class="paginacao">
+      {% if pagina.has_previous %}
+        <a href="?{% if parametros_filtro %}{{ parametros_filtro }}&{% endif %}pagina={{ pagina.previous_page_number }}">« Anterior</a>
+      {% endif %}
+      <span class="texto-suave">Página {{ pagina.number }} de {{ pagina.paginator.num_pages }}</span>
+      {% if pagina.has_next %}
+        <a href="?{% if parametros_filtro %}{{ parametros_filtro }}&{% endif %}pagina={{ pagina.next_page_number }}">Próxima »</a>
+      {% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}
+
+{% block body %}{{ block.super }}
+  <script src="{% static 'vendor/katex/katex.min.js' %}"></script>
+  <script>
+    document.querySelectorAll(".ql-formula").forEach(function (elemento) {
+      try {
+        katex.render(elemento.dataset.value, elemento, { throwOnError: false });
+      } catch (erro) {
+        // Se uma fórmula antiga tiver LaTeX inválido, não trava o
+        // resto da página — só aquela fórmula fica sem renderizar.
+      }
+    });
+  </script>
+{% endblock %}

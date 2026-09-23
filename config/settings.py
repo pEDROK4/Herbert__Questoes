@@ -81,6 +81,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "core",
+    "questoes",
 ]
 
 MIDDLEWARE = [
@@ -92,6 +93,14 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "core.middleware.ForcarTrocaSenhaMiddleware",
+]
+
+# Login por usuário (coordenação) OU por telefone cadastrado no perfil
+# (professores) — os dois backends são tentados nessa ordem.
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+    "core.backends.TelefoneBackend",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -106,6 +115,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "core.context_processors.menu_lateral",
             ],
         },
     },
@@ -209,13 +219,19 @@ if USE_SPACES:
     }
     MEDIA_URL = f"https://{AWS_STORAGE_BUCKET_NAME}.{AWS_S3_REGION_NAME}.digitaloceanspaces.com/"
 else:
-    MEDIA_URL = "media/"
+    # Precisa começar com "/" — sem isso, o navegador resolve a URL da
+    # imagem relativa à página atual (ex: /painel/questoes/media/...)
+    # em vez da raiz do site, e a imagem não carrega.
+    MEDIA_URL = "/media/"
     MEDIA_ROOT = BASE_DIR / "media"
+    STORAGES["default"] = {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    }
 
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Para onde vai o professor depois de logar / deslogar.
 LOGIN_URL = "core:login"
-LOGIN_REDIRECT_URL = "core:home"
+LOGIN_REDIRECT_URL = "core:painel"
 LOGOUT_REDIRECT_URL = "core:login"

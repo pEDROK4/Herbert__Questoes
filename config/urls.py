@@ -15,6 +15,8 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
@@ -22,3 +24,9 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("", include("core.urls")),
 ]
+
+# Em produção (Spaces/S3), as imagens são servidas direto de lá — essa
+# rota extra só existe pro "runserver" local conseguir devolver os
+# arquivos que caem na pasta media/ quando o Spaces não está configurado.
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

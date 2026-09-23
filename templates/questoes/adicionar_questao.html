@@ -1,0 +1,227 @@
+{% extends "core/layout_painel.html" %}
+{% load core_icons static %}
+{% block title %}Adicionar questão — Banco de Questões{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'vendor/quill/quill.snow.css' %}">
+  <link rel="stylesheet" href="{% static 'vendor/katex/katex.min.css' %}">
+  <style>
+    #editor-enunciado { min-height: 240px; background: #fff; font-size: 1rem; }
+    .ql-toolbar.ql-snow { border-radius: 8px 8px 0 0; border-color: var(--cor-borda); }
+    .ql-container.ql-snow { border-radius: 0 0 8px 8px; border-color: var(--cor-borda); }
+    .linha-alternativa { display: flex; align-items: flex-start; gap: 0.6rem; margin-bottom: 0.6rem; }
+    .linha-alternativa input[type=radio] { margin-top: 0.75rem; width: 1.1rem; height: 1.1rem; flex-shrink: 0; }
+    .linha-alternativa .campo { flex: 1; margin-bottom: 0; }
+    .linha-alternativa label.rotulo-letra { width: 1.6rem; flex-shrink: 0; margin-top: 0.6rem; text-align: center; font-weight: 700; }
+    fieldset { border: none; padding: 0; margin: 0 0 1.25rem; }
+    fieldset legend { font-weight: 600; font-size: 0.9rem; margin-bottom: 0.4rem; padding: 0; }
+  </style>
+{% endblock %}
+
+{% block conteudo_painel %}
+  <h1 style="font-size: 1.4rem; margin-top: 0; margin-bottom: 0.15rem;">Adicionar questão</h1>
+  <p class="texto-suave" style="margin-top: 0;">Só aparecem os assuntos das frentes atribuídas a você.</p>
+
+  {% for message in messages %}
+    <div class="alerta alerta-sucesso">{{ message }}</div>
+  {% endfor %}
+
+  {% if not tem_assunto_disponivel %}
+    <div class="alerta alerta-erro" style="margin-top: 1rem;">
+      Ainda não há nenhum assunto cadastrado para a(s) sua(s) frente(s). Cadastre um assunto em
+      <a href="{% url 'core:planejamento' %}">Ver planejamento</a> antes de adicionar uma questão.
+    </div>
+  {% else %}
+
+    {% if form.non_field_errors %}
+      <div class="alerta alerta-erro" style="margin-top: 1rem;">
+        {% for erro in form.non_field_errors %}{{ erro }}<br>{% endfor %}
+      </div>
+    {% endif %}
+
+    <form method="post" id="form-questao" class="cartao" style="padding: 1.5rem; margin-top: 1rem; max-width: 760px;">
+      {% csrf_token %}
+
+      <div class="campo">
+        <label for="{{ form.assunto.id_for_label }}">{{ form.assunto.label }}</label>
+        {{ form.assunto }}
+        {% for erro in form.assunto.errors %}<span class="erro">{{ erro }}</span>{% endfor %}
+      </div>
+
+      <fieldset>
+        <legend>Origem</legend>
+        <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 400; margin-bottom: 0.75rem;">
+          {{ form.autoria_propria }} {{ form.autoria_propria.label }}
+        </label>
+
+        <div id="bloco-vestibular" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem;">
+          <div class="campo">
+            <label for="{{ form.banca.id_for_label }}">{{ form.banca.label }}</label>
+            {{ form.banca }}
+          </div>
+          <div class="campo">
+            <label for="{{ form.ano.id_for_label }}">{{ form.ano.label }}</label>
+            {{ form.ano }}
+          </div>
+          <div class="campo">
+            <label for="{{ form.prova.id_for_label }}">{{ form.prova.label }}</label>
+            {{ form.prova }}
+          </div>
+        </div>
+      </fieldset>
+
+      <div class="campo">
+        <label>Enunciado</label>
+        <div id="editor-enunciado">{{ enunciado_inicial|safe }}</div>
+        {{ form.enunciado }}
+        {% for erro in form.enunciado.errors %}<span class="erro">{{ erro }}</span>{% endfor %}
+        <p class="texto-suave" style="font-size: 0.8rem; margin-top: 0.4rem;">
+          Cole ou arraste imagens direto no texto, no ponto onde elas devem aparecer. Use o botão
+          de fórmula da barra de ferramentas para inserir uma fórmula em LaTeX.
+        </p>
+      </div>
+
+      <fieldset>
+        <legend>Alternativas — marque a correta</legend>
+        {% for letra, campo in alternativas_com_letra %}
+          <div class="linha-alternativa">
+            <label class="rotulo-letra" for="id_correta_{{ letra }}">{{ letra|upper }}</label>
+            <input type="radio" name="correta" value="{{ letra }}" id="id_correta_{{ letra }}"
+                   {% if form.correta.value == letra %}checked{% endif %} required>
+            <div class="campo">
+              {{ campo }}
+              {% for erro in campo.errors %}<span class="erro">{{ erro }}</span>{% endfor %}
+            </div>
+          </div>
+        {% endfor %}
+        {% for erro in form.correta.errors %}<span class="erro">{{ erro }}</span>{% endfor %}
+      </fieldset>
+
+      <button type="submit">Salvar questão</button>
+    </form>
+
+  {% endif %}
+{% endblock %}
+
+{% block body %}{{ block.super }}
+{% if tem_assunto_disponivel %}
+  <script src="{% static 'vendor/katex/katex.min.js' %}"></script>
+  <script src="{% static 'vendor/quill/quill.js' %}"></script>
+  <script>
+    (function () {
+      function lerCookie(nome) {
+        const match = document.cookie.match("(^|;\\s*)" + nome + "=([^;]*)");
+        return match ? decodeURIComponent(match[2]) : null;
+      }
+
+      const quill = new Quill("#editor-enunciado", {
+        theme: "snow",
+        modules: {
+          toolbar: {
+            container: [
+              ["bold", "italic", "underline"],
+              [{ list: "ordered" }, { list: "bullet" }],
+              ["blockquote"],
+              ["formula", "image"],
+              ["clean"],
+            ],
+            handlers: { image: selecionarImagem },
+          },
+          formula: true,
+        },
+      });
+
+      async function enviarImagem(arquivo) {
+        const dados = new FormData();
+        dados.append("imagem", arquivo);
+        const resposta = await fetch("{% url 'core:upload_imagem_editor' %}", {
+          method: "POST",
+          headers: { "X-CSRFToken": lerCookie("csrftoken") },
+          body: dados,
+        });
+        const corpo = await resposta.json();
+        if (!resposta.ok) {
+          throw new Error(corpo.erro || "Não foi possível enviar a imagem.");
+        }
+        return corpo.url;
+      }
+
+      async function inserirImagemNoIndice(arquivo, indice) {
+        try {
+          const url = await enviarImagem(arquivo);
+          quill.insertEmbed(indice, "image", url, "user");
+          quill.setSelection(indice + 1, 0, "user");
+        } catch (erro) {
+          alert(erro.message);
+        }
+      }
+
+      function selecionarImagem() {
+        const range = quill.getSelection(true);
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = "image/*";
+        input.onchange = () => {
+          const arquivo = input.files[0];
+          if (arquivo) inserirImagemNoIndice(arquivo, range ? range.index : quill.getLength());
+        };
+        input.click();
+      }
+
+      quill.root.addEventListener("paste", (evento) => {
+        const itens = evento.clipboardData && evento.clipboardData.items;
+        if (!itens) return;
+        const item = Array.from(itens).find((i) => i.type && i.type.startsWith("image/"));
+        if (!item) return;
+        evento.preventDefault();
+        const arquivo = item.getAsFile();
+        const range = quill.getSelection(true);
+        inserirImagemNoIndice(arquivo, range ? range.index : quill.getLength());
+      });
+
+      quill.root.addEventListener("drop", (evento) => {
+        const arquivos = Array.from((evento.dataTransfer && evento.dataTransfer.files) || []).filter(
+          (f) => f.type && f.type.startsWith("image/")
+        );
+        if (!arquivos.length) return;
+        evento.preventDefault();
+
+        let indice = quill.getLength();
+        let intervalo = null;
+        if (document.caretRangeFromPoint) {
+          intervalo = document.caretRangeFromPoint(evento.clientX, evento.clientY);
+        } else if (document.caretPositionFromPoint) {
+          const posicao = document.caretPositionFromPoint(evento.clientX, evento.clientY);
+          if (posicao) {
+            intervalo = document.createRange();
+            intervalo.setStart(posicao.offsetNode, posicao.offset);
+          }
+        }
+        if (intervalo) {
+          const blot = Quill.find(intervalo.startContainer, true);
+          if (blot) indice = quill.getIndex(blot) + intervalo.startOffset;
+        }
+
+        (async () => {
+          for (const arquivo of arquivos) {
+            await inserirImagemNoIndice(arquivo, indice);
+            indice += 1;
+          }
+        })();
+      });
+
+      const checkboxAutoria = document.getElementById("{{ form.autoria_propria.id_for_label }}");
+      const blocoVestibular = document.getElementById("bloco-vestibular");
+      function atualizarBlocoVestibular() {
+        blocoVestibular.style.display = checkboxAutoria.checked ? "none" : "";
+      }
+      checkboxAutoria.addEventListener("change", atualizarBlocoVestibular);
+      atualizarBlocoVestibular();
+
+      document.getElementById("form-questao").addEventListener("submit", () => {
+        document.getElementById("{{ form.enunciado.id_for_label }}").value = quill.root.innerHTML;
+      });
+    })();
+  </script>
+{% endif %}
+{% endblock %}

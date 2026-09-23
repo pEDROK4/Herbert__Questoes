@@ -5,46 +5,141 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Banco de Questões{% endblock %}</title>
   <style>
+    :root {
+      --cor-fundo: #f4f5f7;
+      --cor-texto: #1a1a1a;
+      --cor-texto-suave: #6b7280;
+      --cor-borda: #e2e4e9;
+      --cor-primaria: #2952e3;
+      --cor-primaria-escura: #1e3fb8;
+      --cor-cartao: #ffffff;
+      --cor-erro: #b00020;
+      --cor-sucesso: #0a7d2c;
+      --sombra-cartao: 0 1px 2px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.06);
+    }
+
+    * { box-sizing: border-box; }
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      max-width: 720px;
-      margin: 4rem auto;
-      padding: 0 1.5rem;
-      color: #1a1a1a;
+      margin: 0;
+      background: var(--cor-fundo);
+      color: var(--cor-texto);
       line-height: 1.5;
     }
-    h1 { font-size: 1.5rem; }
-    .card {
-      border: 1px solid #ddd;
+
+    a { color: var(--cor-primaria); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .cartao {
+      background: var(--cor-cartao);
+      border: 1px solid var(--cor-borda);
+      border-radius: 10px;
+      box-shadow: var(--sombra-cartao);
+    }
+
+    button, .botao {
+      display: inline-block;
+      padding: 0.6rem 1.1rem;
       border-radius: 8px;
-      padding: 1.25rem;
-      margin: 1rem 0;
+      border: none;
+      background: var(--cor-primaria);
+      color: #fff;
+      font-size: 0.95rem;
+      cursor: pointer;
     }
-    .ok { color: #0a7d2c; }
-    .erro { color: #b00020; }
-    nav a { margin-right: 1rem; }
-    form p { margin: 0.75rem 0; }
-    label { display: block; margin-bottom: 0.25rem; font-weight: 600; }
-    input[type=text], input[type=password] {
-      width: 100%; padding: 0.5rem; box-sizing: border-box;
+    button:hover, .botao:hover { background: var(--cor-primaria-escura); text-decoration: none; }
+
+    label { display: block; margin-bottom: 0.3rem; font-weight: 600; font-size: 0.9rem; }
+    input[type=text], input[type=password], input[type=email], input[type=number],
+    select, textarea {
+      width: 100%;
+      padding: 0.6rem 0.7rem;
+      border: 1px solid var(--cor-borda);
+      border-radius: 8px;
+      font-size: 1rem;
+      font-family: inherit;
+      background: #fff;
+      color: var(--cor-texto);
     }
-    button {
-      padding: 0.5rem 1rem; cursor: pointer;
+    textarea { resize: vertical; }
+    input:focus, select:focus, textarea:focus { outline: 2px solid var(--cor-primaria); outline-offset: 1px; }
+    .campo { margin-bottom: 1rem; }
+    .campo .erro { display: block; font-size: 0.8rem; margin-top: 0.25rem; }
+
+    table.tabela-planejamento { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    table.tabela-planejamento th, table.tabela-planejamento td {
+      text-align: left;
+      padding: 0.55rem 0.7rem;
+      border-bottom: 1px solid var(--cor-borda);
     }
+    table.tabela-planejamento th { color: var(--cor-texto-suave); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.02em; }
+    table.tabela-planejamento tbody tr:hover { background: var(--cor-fundo); }
+    .contagem-questoes {
+      display: inline-block;
+      min-width: 1.6rem;
+      padding: 0.1rem 0.5rem;
+      border-radius: 999px;
+      background: #eaefff;
+      color: var(--cor-primaria);
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-align: center;
+    }
+
+    .texto-suave { color: var(--cor-texto-suave); }
+    .erro { color: var(--cor-erro); }
+    .sucesso { color: var(--cor-sucesso); }
+
+    .alerta { padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; }
+    .alerta-sucesso { background: #e8f7ec; color: var(--cor-sucesso); }
+    .alerta-erro { background: #fbe9ec; color: var(--cor-erro); }
+    .alerta-info { background: #eaefff; color: var(--cor-primaria); }
+
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .badge-neutro { background: #eef0f3; color: #6b7280; }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(17, 20, 29, 0.55);
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      z-index: 100;
+    }
+    .modal-overlay:target,
+    .modal-overlay.aberto {
+      display: flex;
+    }
+    .modal-conteudo {
+      position: relative;
+      width: 100%;
+      max-width: 480px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 1.5rem;
+    }
+    .modal-fechar {
+      position: absolute;
+      top: 0.9rem;
+      right: 0.9rem;
+      color: var(--cor-texto-suave);
+      line-height: 0;
+    }
+    .modal-fechar:hover { color: var(--cor-texto); text-decoration: none; }
   </style>
+  {% block extra_head %}{% endblock %}
 </head>
 <body>
-  <nav>
-    {% if user.is_authenticated %}
-      <a href="{% url 'core:home' %}">Início</a>
-      <a href="{% url 'core:painel' %}">Painel</a>
-      <a href="{% url 'core:logout' %}">Sair ({{ user }})</a>
-    {% else %}
-      <a href="{% url 'core:home' %}">Início</a>
-      <a href="{% url 'core:login' %}">Entrar</a>
-    {% endif %}
-  </nav>
-  <hr>
-  {% block content %}{% endblock %}
+  {% block body %}{% endblock %}
 </body>
 </html>

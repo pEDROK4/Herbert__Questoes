@@ -1,0 +1,24 @@
+{% extends "core/layout_publico.html" %}
+{% load core_icons %}
+{% block title %}Status — Banco de Questões{% endblock %}
+{% block conteudo_publico %}
+  <h1 style="font-size: 1.2rem; margin-top: 0;">Status do sistema</h1>
+
+  <p style="font-size: 0.95rem;">
+    {% if db_ok %}
+      <span class="sucesso" style="display: flex; align-items: center; gap: 0.4rem;">
+        {% icone "check-circle" %} Conectado ao banco com sucesso.
+      </span>
+    {% else %}
+      <span class="erro" style="display: flex; align-items: center; gap: 0.4rem;">
+        {% icone "x-circle" %} Não foi possível conectar ao banco.
+      </span>
+      {% if db_error %}<br><small>{{ db_error }}</small>{% endif %}
+    {% endif %}
+  </p>
+  <p class="texto-suave" style="font-size: 0.85rem;">Engine: {{ db_engine }}</p>
+
+  <p style="text-align: center; margin-top: 1.5rem; margin-bottom: 0; font-size: 0.9rem;">
+    <a href="{% url 'core:login' %}">← Ir para o login</a>
+  </p>
+{% endblock %}

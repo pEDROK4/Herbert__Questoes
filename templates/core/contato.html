@@ -1,0 +1,17 @@
+{% extends "core/layout_publico.html" %}
+{% load core_icons %}
+{% block title %}Contato — Banco de Questões{% endblock %}
+{% block conteudo_publico %}
+  <h1 style="font-size: 1.2rem; margin-top: 0;">Solicitar acesso</h1>
+  <p class="texto-suave" style="font-size: 0.95rem;">
+    Entre em contato diretamente pelo e-mail abaixo explicando quem você é e qual
+    disciplina leciona.
+  </p>
+  <p style="font-size: 1.05rem; margin: 1.25rem 0; display: flex; align-items: center; gap: 0.5rem;">
+    <!-- TODO: trocar pelo e-mail de contato definitivo -->
+    {% icone "mail" 20 %} <a href="mailto:pedro@qbradainteligente.com.br">pedro@qbradainteligente.com.br</a>
+  </p>
+  <p style="text-align: center; margin-top: 1.5rem; margin-bottom: 0; font-size: 0.9rem;">
+    <a href="{% url 'core:login' %}">← Voltar para o login</a>
+  </p>
+{% endblock %}

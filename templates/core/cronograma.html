@@ -1,0 +1,233 @@
+{% extends "core/layout_painel.html" %}
+{% load core_icons %}
+{% block title %}Cronograma — Banco de Questões{% endblock %}
+
+{% block extra_head %}
+  <style>
+    .cabecalho-semana {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      margin-bottom: 0.35rem;
+    }
+    .cabecalho-semana span {
+      text-align: center;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      color: var(--cor-texto-suave);
+    }
+    .semana-grade {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      grid-auto-rows: min-content;
+      row-gap: 2px;
+      margin-bottom: 0.6rem;
+    }
+    .dia-numero {
+      grid-row: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.6rem;
+      height: 1.6rem;
+      margin: 0.15rem auto 0.2rem;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--cor-texto);
+    }
+    .dia-numero:hover { background: var(--cor-fundo); text-decoration: none; }
+    .dia-numero.fora-do-mes { color: var(--cor-texto-suave); font-weight: 400; }
+    .dia-numero.hoje { outline: 2px solid var(--cor-primaria); outline-offset: -2px; }
+    .dia-numero.selecionado { background: #eaefff; color: var(--cor-primaria); }
+    .barra-evento {
+      display: block;
+      padding: 0.12rem 0.5rem;
+      background: #eaefff;
+      color: var(--cor-primaria);
+      font-size: 0.72rem;
+      line-height: 1.5;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-decoration: none;
+    }
+    .barra-evento:hover { background: #d9e2ff; text-decoration: none; }
+    .barra-evento.borda-inicio { border-radius: 5px 0 0 5px; margin-left: 2px; }
+    .barra-evento.borda-fim { border-radius: 0 5px 5px 0; margin-right: 2px; }
+    .evento-item { padding: 0.85rem 0; border-bottom: 1px solid var(--cor-borda); }
+    .evento-item:last-child { border-bottom: none; }
+    .modal-conteudo.pequeno { max-width: 380px; }
+  </style>
+{% endblock %}
+
+{% block conteudo_painel %}
+  <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+    <div>
+      <h1 style="font-size: 1.4rem; margin-top: 0; margin-bottom: 0.15rem;">Cronograma</h1>
+      <p class="texto-suave" style="margin-top: 0;">
+        {% if eh_coordenador %}Crie, edite e apague os eventos do calendário.{% else %}Datas e eventos do cursinho.{% endif %}
+      </p>
+    </div>
+    {% if eh_coordenador %}
+      <a href="?mes={{ mes_atual|date:'Y-m' }}{% if dia_selecionado %}&dia={{ dia_selecionado|date:'Y-m-d' }}{% endif %}&criar=1#modal-evento"
+         class="botao" style="display: inline-flex; align-items: center; gap: 0.4rem;">
+        {% icone "plus" 18 %} Novo evento
+      </a>
+    {% endif %}
+  </div>
+
+  {% for message in messages %}
+    <div class="alerta alerta-sucesso">{{ message }}</div>
+  {% endfor %}
+
+  <section class="cartao" style="padding: 1.25rem; margin-top: 1.5rem;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+      <a href="?mes={{ mes_anterior|date:'Y-m' }}" class="texto-suave" aria-label="Mês anterior">‹ Anterior</a>
+      <h2 style="margin: 0; font-size: 1.1rem;">{{ mes_atual|date:"F \d\e Y"|capfirst }}</h2>
+      <a href="?mes={{ mes_seguinte|date:'Y-m' }}" class="texto-suave" aria-label="Próximo mês">Próximo ›</a>
+    </div>
+
+    <div class="cabecalho-semana">
+      {% for dia in nomes_dias_semana %}
+        <span>{{ dia|date:"D" }}</span>
+      {% endfor %}
+    </div>
+
+    {% for semana in semanas %}
+      <div class="semana-grade">
+        {% for dia in semana.dias %}
+          <a href="?mes={{ mes_atual|date:'Y-m' }}&dia={{ dia.data|date:'Y-m-d' }}#eventos-do-dia"
+             class="dia-numero {% if not dia.no_mes %}fora-do-mes{% endif %} {% if dia.hoje %}hoje{% endif %} {% if dia.selecionado %}selecionado{% endif %}"
+             style="grid-column: {{ forloop.counter }};">
+            {{ dia.data|date:"d" }}
+          </a>
+        {% endfor %}
+        {% for barra in semana.barras %}
+          <a href="?mes={{ mes_atual|date:'Y-m' }}&dia={{ barra.evento.data|date:'Y-m-d' }}#eventos-do-dia"
+             class="barra-evento {% if not barra.continua_antes %}borda-inicio{% endif %} {% if not barra.continua_depois %}borda-fim{% endif %}"
+             style="grid-column: {{ barra.col_inicio }} / {{ barra.col_fim|add:1 }}; grid-row: {{ barra.pista|add:2 }};"
+             title="{{ barra.evento.titulo }}">
+            {{ barra.evento.titulo }}
+          </a>
+        {% endfor %}
+      </div>
+    {% endfor %}
+  </section>
+
+  <section id="eventos-do-dia" class="cartao" style="padding: 1.25rem; margin-top: 1.5rem; scroll-margin-top: 1.5rem;">
+    <h2 style="margin-top: 0; font-size: 1.05rem;">
+      {% if dia_selecionado %}
+        Eventos em {{ dia_selecionado|date:"d \d\e F \d\e Y" }}
+      {% else %}
+        Clique num dia do calendário para ver os eventos
+      {% endif %}
+    </h2>
+
+    {% if dia_selecionado %}
+      {% for evento in eventos_do_dia %}
+        <div class="evento-item">
+          <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;">
+            <strong>{{ evento.titulo }}</strong>
+            {% if evento.hora %}<span class="texto-suave" style="font-size: 0.85rem;">{{ evento.hora|time:"H:i" }}</span>{% endif %}
+          </div>
+          {% if evento.dura_mais_de_um_dia %}
+            <span class="texto-suave" style="font-size: 0.8rem;">
+              {{ evento.data|date:"d/m" }} a {{ evento.data_fim|date:"d/m" }}
+            </span>
+          {% endif %}
+          {% if evento.descricao %}
+            <p class="texto-suave" style="margin: 0.3rem 0 0;">{{ evento.descricao }}</p>
+          {% endif %}
+          {% if eh_coordenador %}
+            <div style="margin-top: 0.5rem; display: flex; gap: 1rem; font-size: 0.85rem;">
+              <a href="?mes={{ mes_atual|date:'Y-m' }}&dia={{ dia_selecionado|date:'Y-m-d' }}&editar={{ evento.pk }}#modal-evento">Editar</a>
+              <a href="#modal-apagar-{{ evento.pk }}" class="erro">Apagar</a>
+            </div>
+          {% endif %}
+        </div>
+      {% empty %}
+        <p class="texto-suave">Nenhum evento cadastrado para este dia.</p>
+      {% endfor %}
+    {% endif %}
+  </section>
+
+  {% if eh_coordenador %}
+    {% for evento in eventos_do_dia %}
+      <div id="modal-apagar-{{ evento.pk }}" class="modal-overlay">
+        <div class="modal-conteudo pequeno cartao">
+          <a href="{{ url_pagina_atual }}#eventos-do-dia" class="modal-fechar" aria-label="Fechar">{% icone "x" 20 %}</a>
+          <h2 style="margin-top: 0; margin-bottom: 0.6rem; font-size: 1.05rem;">Apagar evento?</h2>
+          <p class="texto-suave" style="margin-top: 0;">
+            Tem certeza que deseja apagar "{{ evento.titulo }}"? Essa ação não pode ser desfeita.
+          </p>
+          <div style="display: flex; gap: 0.75rem; margin-top: 1.1rem;">
+            <a href="{{ url_pagina_atual }}#eventos-do-dia" class="botao"
+               style="background: var(--cor-fundo); color: var(--cor-texto);">Cancelar</a>
+            <form method="post" action="{{ url_pagina_atual }}" style="margin: 0;">
+              {% csrf_token %}
+              <input type="hidden" name="acao" value="excluir">
+              <input type="hidden" name="evento_id" value="{{ evento.pk }}">
+              <input type="hidden" name="data_evento" value="{{ dia_selecionado|date:'Y-m-d' }}">
+              <button type="submit" style="background: var(--cor-erro);">Apagar</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+
+    <div id="modal-evento" class="modal-overlay{% if abrir_formulario %} aberto{% endif %}">
+      <div class="modal-conteudo cartao">
+        <a href="{{ url_pagina_atual }}" class="modal-fechar" aria-label="Fechar">{% icone "x" 20 %}</a>
+        <h2 style="margin-top: 0; margin-bottom: 1.1rem; font-size: 1.1rem;">
+          {% if editando_evento_id %}Editar evento{% else %}Novo evento{% endif %}
+        </h2>
+
+        <form method="post" action="{{ url_pagina_atual }}">
+          {% csrf_token %}
+          {% if editando_evento_id %}
+            <input type="hidden" name="evento_id" value="{{ editando_evento_id }}">
+          {% endif %}
+
+          {% for erro in form.non_field_errors %}
+            <div class="alerta alerta-erro">{{ erro }}</div>
+          {% endfor %}
+
+          <div class="campo">
+            <label for="{{ form.titulo.id_for_label }}">{{ form.titulo.label }}</label>
+            {{ form.titulo }}
+            {% for erro in form.titulo.errors %}<span class="erro">{{ erro }}</span>{% endfor %}
+          </div>
+
+          <div style="display: flex; gap: 1rem;">
+            <div class="campo" style="flex: 1;">
+              <label for="{{ form.data.id_for_label }}">{{ form.data.label }}</label>
+              {{ form.data }}
+              {% for erro in form.data.errors %}<span class="erro">{{ erro }}</span>{% endfor %}
+            </div>
+            <div class="campo" style="flex: 1;">
+              <label for="{{ form.data_fim.id_for_label }}">{{ form.data_fim.label }}</label>
+              {{ form.data_fim }}
+              <span class="texto-suave" style="font-size: 0.78rem;">{{ form.data_fim.help_text }}</span>
+              {% for erro in form.data_fim.errors %}<span class="erro">{{ erro }}</span>{% endfor %}
+            </div>
+          </div>
+
+          <div class="campo">
+            <label for="{{ form.hora.id_for_label }}">{{ form.hora.label }}</label>
+            {{ form.hora }}
+            {% for erro in form.hora.errors %}<span class="erro">{{ erro }}</span>{% endfor %}
+          </div>
+
+          <div class="campo">
+            <label for="{{ form.descricao.id_for_label }}">{{ form.descricao.label }}</label>
+            {{ form.descricao }}
+            {% for erro in form.descricao.errors %}<span class="erro">{{ erro }}</span>{% endfor %}
+          </div>
+
+          <button type="submit">Salvar evento</button>
+        </form>
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}

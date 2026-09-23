@@ -1,0 +1,211 @@
+{% extends "core/layout_painel.html" %}
+{% load core_icons %}
+{% block title %}Estatísticas — Banco de Questões{% endblock %}
+
+{% block extra_head %}
+  <style>
+    .pagina-estatisticas {
+      display: flex;
+      flex-direction: column;
+      gap: 1.1rem;
+      height: calc(100vh - 4rem);
+      min-height: 480px;
+    }
+    .cabecalho-estatisticas { flex-shrink: 0; }
+
+    .linha-cartoes {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      flex-shrink: 0;
+    }
+    .cartao-metrica {
+      padding: 1rem 1.1rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .metrica-valor { font-size: 1.7rem; font-weight: 700; line-height: 1.15; }
+    .metrica-rotulo { font-size: 0.82rem; color: var(--cor-texto-suave); margin-top: 0.15rem; }
+    .metrica-detalhe { font-size: 0.72rem; color: var(--cor-texto-suave); margin-top: 0.2rem; }
+
+    .linha-graficos {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.1rem;
+      flex: 1;
+      min-height: 0;
+    }
+    .painel-grafico {
+      padding: 1.1rem 1.25rem;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .painel-grafico h2 { margin: 0 0 0.9rem; font-size: 1rem; flex-shrink: 0; }
+
+    .donut-area {
+      display: flex;
+      align-items: center;
+      gap: 1.75rem;
+      flex: 1;
+      min-height: 0;
+    }
+    .donut {
+      width: 170px;
+      height: 170px;
+      min-width: 170px;
+      border-radius: 50%;
+      position: relative;
+    }
+    .donut-buraco {
+      position: absolute;
+      inset: 22%;
+      background: var(--cor-cartao);
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .donut-buraco strong { font-size: 1.3rem; line-height: 1.1; }
+    .donut-buraco span { font-size: 0.7rem; color: var(--cor-texto-suave); }
+
+    .legenda-donut { list-style: none; margin: 0; padding: 0; overflow-y: auto; max-height: 100%; }
+    .legenda-donut li {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      padding: 0.3rem 0;
+    }
+    .legenda-donut li strong { margin-left: auto; color: var(--cor-texto-suave); font-weight: 600; }
+    .ponto { width: 0.6rem; height: 0.6rem; border-radius: 999px; flex-shrink: 0; }
+
+    .ranking-lista { flex: 1; overflow-y: auto; display: flex; flex-direction: column; justify-content: space-evenly; gap: 0.5rem; }
+    .linha-ranking { display: grid; grid-template-columns: 7.5rem 1fr 2rem; align-items: center; gap: 0.6rem; }
+    .linha-ranking .nome-disciplina { font-size: 0.82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .barra-fundo { background: var(--cor-fundo); border-radius: 999px; height: 0.6rem; overflow: hidden; }
+    .barra-preenchida { background: var(--cor-primaria); height: 100%; border-radius: 999px; }
+    .valor-ranking { font-size: 0.82rem; font-weight: 600; text-align: right; }
+
+    .linha-detalhes {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.1rem;
+      flex-shrink: 0;
+    }
+    .linha-detalhes .cartao { padding: 1rem 1.25rem; }
+    .linha-detalhes h2 { margin: 0 0 0.7rem; font-size: 0.95rem; }
+    .barra-empilhada {
+      display: flex;
+      width: 100%;
+      height: 0.9rem;
+      border-radius: 999px;
+      overflow: hidden;
+      background: var(--cor-fundo);
+    }
+    .legenda-empilhada { display: flex; gap: 1.25rem; margin-top: 0.6rem; flex-wrap: wrap; }
+    .legenda-empilhada span { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--cor-texto-suave); }
+  </style>
+{% endblock %}
+
+{% block conteudo_painel %}
+  <div class="pagina-estatisticas">
+    <div class="cabecalho-estatisticas">
+      <h1 style="font-size: 1.4rem; margin-top: 0; margin-bottom: 0.15rem;">Estatísticas</h1>
+      <p class="texto-suave" style="margin-top: 0;">Uma visão geral do andamento do banco de questões.</p>
+    </div>
+
+    <div class="linha-cartoes">
+      <div class="cartao cartao-metrica">
+        <span class="metrica-valor">{{ total_questoes }}</span>
+        <span class="metrica-rotulo">Questões cadastradas</span>
+      </div>
+      <div class="cartao cartao-metrica">
+        <span class="metrica-valor">{{ total_assuntos }}</span>
+        <span class="metrica-rotulo">Aulas com conteúdo</span>
+        <span class="metrica-detalhe">{{ cobertura_aulas }}% de {{ capacidade_total_aulas }} aulas possíveis</span>
+      </div>
+      <div class="cartao cartao-metrica">
+        <span class="metrica-valor">{{ total_disciplinas_com_conteudo }}/{{ total_disciplinas }}</span>
+        <span class="metrica-rotulo">Disciplinas com questões</span>
+      </div>
+      <div class="cartao cartao-metrica">
+        <span class="metrica-valor">{{ assuntos_sem_questao }}</span>
+        <span class="metrica-rotulo">Aulas sem nenhuma questão</span>
+      </div>
+    </div>
+
+    <div class="linha-graficos">
+      <section class="cartao painel-grafico">
+        <h2>Questões por disciplina</h2>
+        {% if fatias_donut %}
+          <div class="donut-area">
+            <div class="donut" style="background: conic-gradient({{ donut_gradiente }});">
+              <div class="donut-buraco">
+                <strong>{{ total_questoes }}</strong>
+                <span>questões</span>
+              </div>
+            </div>
+            <ul class="legenda-donut">
+              {% for fatia in fatias_donut %}
+                <li><span class="ponto" style="background: {{ fatia.cor }};"></span>{{ fatia.nome }}<strong>{{ fatia.percentual }}%</strong></li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% else %}
+          <p class="texto-suave">Nenhuma questão cadastrada ainda.</p>
+        {% endif %}
+      </section>
+
+      <section class="cartao painel-grafico">
+        <h2>Ranking de disciplinas</h2>
+        {% if ranking_disciplinas %}
+          <div class="ranking-lista">
+            {% for disciplina in ranking_disciplinas %}
+              <div class="linha-ranking">
+                <span class="nome-disciplina">{{ disciplina.nome }}</span>
+                <div class="barra-fundo"><div class="barra-preenchida" style="width: {{ disciplina.percentual_do_maior }}%;"></div></div>
+                <span class="valor-ranking">{{ disciplina.num_questoes }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="texto-suave">Nenhuma disciplina cadastrada ainda.</p>
+        {% endif %}
+      </section>
+    </div>
+
+    <div class="linha-detalhes">
+      <section class="cartao">
+        <h2>Questões por origem</h2>
+        <div class="barra-empilhada">
+          {% for parte in barra_origem %}
+            {% if parte.percentual > 0 %}<div style="width: {{ parte.percentual }}%; background: {{ parte.cor }};"></div>{% endif %}
+          {% endfor %}
+        </div>
+        <div class="legenda-empilhada">
+          {% for parte in barra_origem %}
+            <span><span class="ponto" style="background: {{ parte.cor }};"></span>{{ parte.rotulo }} ({{ parte.quantidade }})</span>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="cartao">
+        <h2>Cobertura de conteúdo por disciplina</h2>
+        <div class="barra-empilhada">
+          {% for parte in barra_cobertura %}
+            {% if parte.percentual > 0 %}<div style="width: {{ parte.percentual }}%; background: {{ parte.cor }};"></div>{% endif %}
+          {% endfor %}
+        </div>
+        <div class="legenda-empilhada">
+          {% for parte in barra_cobertura %}
+            <span><span class="ponto" style="background: {{ parte.cor }};"></span>{{ parte.rotulo }} ({{ parte.quantidade }})</span>
+          {% endfor %}
+        </div>
+      </section>
+    </div>
+  </div>
+{% endblock %}

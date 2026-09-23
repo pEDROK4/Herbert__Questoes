@@ -1,6 +1,40 @@
-{% extends "core/base.html" %}
-{% block title %}Painel{% endblock %}
-{% block content %}
-  <h1>Bem-vindo, {{ user }}</h1>
-  <p>Área logada dos professores. As telas de cronograma, questões e editor entram aqui.</p>
+{% extends "core/layout_painel.html" %}
+{% load core_icons %}
+{% block title %}Painel — Banco de Questões{% endblock %}
+{% block conteudo_painel %}
+  <h1 style="font-size: 1.4rem; margin-top: 0;">Olá, {{ user.first_name|default:user }}</h1>
+  <p class="texto-suave" style="margin-top: -0.5rem;">Aqui vai um resumo do que está acontecendo.</p>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem; margin-top: 1.5rem;">
+
+    <section class="cartao" style="padding: 1.25rem;">
+      <h2 style="font-size: 1rem; margin-top: 0; display: flex; align-items: center; gap: 0.5rem;">
+        {% icone "bell" %} Avisos
+      </h2>
+      <p class="texto-suave" style="font-size: 0.9rem;">
+        Nenhum aviso configurado ainda — em breve, comunicados da
+        coordenação aparecem aqui.
+      </p>
+    </section>
+
+    <section class="cartao" style="padding: 1.25rem;">
+      <h2 style="font-size: 1rem; margin-top: 0; display: flex; align-items: center; gap: 0.5rem;">
+        {% icone "target" %} Metas
+      </h2>
+      <p class="texto-suave" style="font-size: 0.9rem;">
+        Em breve, o progresso de metas (ex: questões cadastradas no mês)
+        aparece aqui.
+      </p>
+    </section>
+
+    <section class="cartao" style="padding: 1.25rem;">
+      <h2 style="font-size: 1rem; margin-top: 0; display: flex; align-items: center; gap: 0.5rem;">
+        {% icone "info" %} Informações
+      </h2>
+      <p class="texto-suave" style="font-size: 0.9rem;">
+        Espaço reservado para informações gerais do banco de questões.
+      </p>
+    </section>
+
+  </div>
 {% endblock %}

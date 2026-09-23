@@ -1,0 +1,40 @@
+{% extends "core/base.html" %}
+{% load core_icons %}
+{% block body %}
+  <div style="display: flex; min-height: 100vh;">
+
+    <aside style="width: 240px; flex-shrink: 0; background: var(--cor-cartao); border-right: 1px solid var(--cor-borda); display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; overflow-y: auto;">
+      <div style="padding: 1.25rem 1.25rem 1rem;">
+        <a href="{% url 'core:painel' %}" style="font-weight: 700; font-size: 1.05rem; color: var(--cor-texto);">
+          Banco de Questões
+        </a>
+      </div>
+
+      <nav style="flex: 1; padding: 0.5rem 0.75rem;">
+        {% for item in menu_lateral %}
+          <a href="{{ item.url }}"
+             style="display: flex; align-items: center; gap: 0.6rem; padding: 0.6rem 0.75rem; margin-bottom: 0.15rem; border-radius: 8px; font-size: 0.92rem; color: {% if item.ativo %}var(--cor-primaria){% else %}var(--cor-texto){% endif %}; background: {% if item.ativo %}#eaefff{% else %}transparent{% endif %}; text-decoration: none;">
+            {% icone item.icone %}
+            <span>{{ item.rotulo }}</span>
+          </a>
+        {% endfor %}
+      </nav>
+
+      <div style="padding: 1rem 1.25rem; border-top: 1px solid var(--cor-borda); font-size: 0.85rem;">
+        <div style="margin-bottom: 0.4rem;">{{ user }}</div>
+        <form method="post" action="{% url 'core:logout' %}">
+          {% csrf_token %}
+          <button type="submit"
+                  style="background: none; border: none; padding: 0; font: inherit; cursor: pointer; color: var(--cor-erro); font-weight: 600;">
+            Sair
+          </button>
+        </form>
+      </div>
+    </aside>
+
+    <main style="flex: 1; padding: 2rem; max-width: 1100px;">
+      {% block conteudo_painel %}{% endblock %}
+    </main>
+
+  </div>
+{% endblock %}
