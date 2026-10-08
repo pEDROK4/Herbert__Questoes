@@ -1,47 +1,55 @@
 from django import forms
 
-from .models import Alternativa, Assunto, Frente, Questao
+from .models import Alternativa, Assunto, Disciplina, Frente, Questao
 from .sanitizacao import enunciado_esta_vazio, sanitizar_html_enunciado
 
 
-class SelectComLimiteAula(forms.Select):
+class SelectFrente(forms.Select):
     """
-    Select de frente que carrega, em cada <option>, o limite de aulas
-    daquela frente (15 para Sociologia/Filosofia, 30 para as demais) —
-    o JS do modal de cadastro usa esse atributo para restringir as
-    opções do campo "aula" na hora, sem round-trip ao servidor.
+    Select de frente que carrega, em cada <option>, a disciplina a que
+    ela pertence e o limite de aulas dela (15 para Sociologia/Filosofia
+    e Português, 30 para as demais). O JS do modal usa esses atributos
+    para filtrar as frentes pela disciplina escolhida e para restringir
+    o campo "aula", tudo na hora, sem round-trip ao servidor.
     """
 
-    def __init__(self, *args, limites=None, **kwargs):
+    def __init__(self, *args, dados=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.limites = limites or {}
+        self.dados = dados or {}
 
     def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
         option = super().create_option(name, value, label, selected, index, subindex, attrs)
-        limite = self.limites.get(str(value))
-        if limite:
-            option["attrs"]["data-limite-aula"] = limite
+        dados = self.dados.get(str(value))
+        if dados:
+            option["attrs"]["data-limite-aula"] = dados["limite"]
+            option["attrs"]["data-disciplina"] = dados["disciplina"]
         return option
 
 
 class AssuntoForm(forms.ModelForm):
     """
-    Formulário de cadastro de um novo conteúdo (assunto). O campo
-    "frente" já identifica a disciplina — cada opção do dropdown é
-    agrupada visualmente por disciplina (optgroup), então escolher a
-    frente também escolhe a disciplina, sem precisar de um segundo
-    campo dependente.
+    Formulário de cadastro/edição de um conteúdo (assunto). Duas
+    "cascatas": primeiro se escolhe a Disciplina, depois a Frente (o JS
+    do modal só mostra as frentes da disciplina escolhida).
 
-    O dropdown só lista as frentes que o professor logado pode usar —
-    isso também vale como validação no backend: se alguém tentar
-    forjar o POST com o pk de uma frente que não é dele, o
-    ModelChoiceField rejeita, porque o valor não está no queryset
-    permitido (veja `usuario` no __init__).
+    Os dois dropdowns só listam o que o professor logado pode usar — e
+    isso também vale como validação no backend: se alguém forjar o POST
+    com o pk de uma frente que não é dele, o ModelChoiceField rejeita,
+    porque o valor não está no queryset permitido (veja `usuario` no
+    __init__). A disciplina é só auxiliar (não é salva): o clean()
+    confere que a frente pertence a ela.
     """
 
+    field_order = ["disciplina", "frente", "nome", "descricao", "aula"]
+
+    disciplina = forms.ModelChoiceField(
+        queryset=Disciplina.objects.none(),
+        label="Disciplina",
+        empty_label=None,
+    )
     frente = forms.ModelChoiceField(
         queryset=Frente.objects.none(),
-        label="Disciplina / frente",
+        label="Frente",
     )
 
     class Meta:
@@ -59,33 +67,40 @@ class AssuntoForm(forms.ModelForm):
     def __init__(self, *args, usuario=None, **kwargs):
         super().__init__(*args, **kwargs)
 
-        queryset = Frente.objects.select_related("disciplina")
+        frentes = Frente.objects.select_related("disciplina")
         if usuario is not None and not usuario.is_superuser:
-            queryset = queryset.filter(professores=usuario)
-        self.fields["frente"].queryset = queryset
+            frentes = frentes.filter(professores=usuario)
+        frentes = frentes.order_by("disciplina__nome", "letra")
+        self.fields["frente"].queryset = frentes
+        self.fields["disciplina"].queryset = Disciplina.objects.filter(
+            frentes__in=frentes
+        ).distinct().order_by("nome")
 
-        # Troca o widget pelo que carrega o limite de aula por opção,
-        # antes de montar os <optgroup> — o setter de `choices` abaixo
-        # também propaga a lista pro widget atual.
-        limites = {str(frente.pk): frente.limite_aula for frente in queryset}
-        self.fields["frente"].widget = SelectComLimiteAula(limites=limites)
+        # Troca o widget pelo que carrega disciplina/limite por opção,
+        # antes de definir as choices — o setter de `choices` também
+        # propaga a lista pro widget atual.
+        dados = {
+            str(frente.pk): {
+                "limite": frente.limite_aula,
+                "disciplina": frente.disciplina_id,
+            }
+            for frente in frentes
+        }
+        self.fields["frente"].widget = SelectFrente(dados=dados)
+        self.fields["frente"].choices = [(frente.pk, frente.nome) for frente in frentes]
 
-        # Monta os <optgroup> por disciplina na mão, já que o
-        # ModelChoiceField sozinho não agrupa.
-        agrupado = {}
-        for frente in queryset:
-            agrupado.setdefault(frente.disciplina.nome, []).append(
-                (frente.pk, frente.nome)
-            )
-        self.fields["frente"].choices = [
-            (disciplina, opcoes) for disciplina, opcoes in agrupado.items()
-        ]
+        # Editando: já abre com a disciplina da aula selecionada.
+        if self.instance.pk:
+            self.initial["disciplina"] = self.instance.frente.disciplina_id
 
     def clean(self):
         dados = super().clean()
+        disciplina = dados.get("disciplina")
         frente = dados.get("frente")
         aula = dados.get("aula")
-        if frente is not None and aula is not None and aula > frente.limite_aula:
+        if disciplina is not None and frente is not None and frente.disciplina_id != disciplina.pk:
+            self.add_error("frente", "Essa frente não pertence à disciplina escolhida.")
+        elif frente is not None and aula is not None and aula > frente.limite_aula:
             self.add_error(
                 "aula",
                 f"{frente.disciplina.nome} só vai até a aula {frente.limite_aula}.",

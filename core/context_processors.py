@@ -12,7 +12,7 @@ ITENS_MENU_LATERAL = [
     ("estatisticas", "bar-chart", "Ver estatísticas", False),
     ("planejamento", "folder", "Ver planejamento", False),
     ("colaboradores", "users", "Colaboradores", False),
-    ("professores", "tool", "Gerenciar professores", True),
+    ("configuracoes", "settings", "Configurações", True),
     ("perfil", "user", "Ver perfil", False),
 ]
 

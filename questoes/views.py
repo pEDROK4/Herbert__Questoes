@@ -2,10 +2,10 @@ import uuid
 from pathlib import Path
 
 from django.contrib import messages
-from django.contrib.auth import get_user_model
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required
 from django.core.files.storage import default_storage
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Count, Prefetch
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -15,8 +15,6 @@ from PIL import Image, UnidentifiedImageError
 from .forms import LETRAS_ALTERNATIVAS, AssuntoForm, QuestaoForm
 from .models import Assunto, Disciplina, Frente, Questao
 from .sanitizacao import sanitizar_html_enunciado
-
-Usuario = get_user_model()
 
 # Cores do gráfico de disciplinas — ciclam nessa ordem se houver mais
 # disciplinas do que cores (não deveria acontecer nas 9 do cursinho).
@@ -31,12 +29,20 @@ def planejamento(request):
     """
     Tabela de planejamento: para cada disciplina, uma tabela por
     frente com os assuntos cadastrados (ordenados por aula) e quantas
-    questões cada um já tem. O botão "Cadastrar assunto" abre o
-    formulário abaixo da tabela (mesma página, sem JavaScript).
+    questões cada um já tem. Clicar no número da aula abre o mesmo
+    modal do cadastro, preenchido, com os botões Salvar e Excluir
+    (tudo por GET/POST na mesma página, sem depender de JavaScript
+    para abrir/fechar).
 
-    Cada professor só vê (e só pode cadastrar em) as frentes que a
-    coordenação atribuiu a ele em Frente.professores — exceto
-    coordenadores (superusuários), que sempre veem tudo.
+    Cada professor só vê (e só pode cadastrar/editar/excluir em) as
+    frentes que a coordenação atribuiu a ele em Frente.professores —
+    exceto coordenadores (superusuários), que sempre veem tudo.
+
+    Duas aulas com o mesmo número na mesma frente não convivem: ao
+    salvar uma aula com número já ocupado, a tela pede confirmação e,
+    se confirmada, a aula antiga é apagada. Se a antiga já tem
+    questões, não dá pra substituir (as questões ficariam órfãs) — a
+    pessoa precisa escolher outro número.
     """
     usuario = request.user
 
@@ -46,13 +52,78 @@ def planejamento(request):
         frentes_permitidas = Frente.objects.filter(professores=usuario)
 
     abrir_formulario = request.GET.get("cadastrar") == "1"
+    assunto_em_edicao = None
+    conflito = None
+    dados_reenvio = []
 
     if request.method == "POST":
-        form = AssuntoForm(request.POST, usuario=usuario)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Assunto cadastrado com sucesso.")
+        if request.POST.get("acao") == "excluir":
+            assunto = get_object_or_404(
+                Assunto, pk=request.POST.get("assunto_id"), frente__in=frentes_permitidas
+            )
+            num_questoes = assunto.questoes.count()
+            if num_questoes:
+                messages.error(
+                    request,
+                    f"A aula {assunto.aula} — {assunto.nome} já tem {num_questoes} "
+                    f"questão(ões) e não pode ser excluída.",
+                )
+            else:
+                assunto.delete()
+                messages.success(request, f"Aula {assunto.aula} excluída.")
             return redirect("core:planejamento")
+
+        assunto_id = request.POST.get("assunto_id")
+        if assunto_id:
+            assunto_em_edicao = get_object_or_404(
+                Assunto, pk=assunto_id, frente__in=frentes_permitidas
+            )
+        form = AssuntoForm(request.POST, instance=assunto_em_edicao, usuario=usuario)
+
+        if form.is_valid():
+            ocupando_o_numero = Assunto.objects.filter(
+                frente=form.cleaned_data["frente"], aula=form.cleaned_data["aula"]
+            )
+            if assunto_em_edicao is not None:
+                ocupando_o_numero = ocupando_o_numero.exclude(pk=assunto_em_edicao.pk)
+            existente = ocupando_o_numero.first()
+
+            if existente is None:
+                form.save()
+                messages.success(
+                    request,
+                    "Aula atualizada." if assunto_em_edicao else "Assunto cadastrado com sucesso.",
+                )
+                return redirect("core:planejamento")
+
+            num_questoes = existente.questoes.count()
+            if num_questoes:
+                form.add_error(
+                    None,
+                    f"A aula {existente.aula} ({existente.nome}) já tem {num_questoes} "
+                    f"questão(ões) e não pode ser substituída. Escolha outro número "
+                    f"de aula ou edite a aula existente.",
+                )
+                abrir_formulario = True
+            elif request.POST.get("confirmar_substituicao") == "1":
+                with transaction.atomic():
+                    existente.delete()
+                    form.save()
+                messages.success(request, f"Aula {existente.aula} substituída.")
+                return redirect("core:planejamento")
+            else:
+                conflito = existente
+                dados_reenvio = [
+                    (campo, request.POST.get(campo, ""))
+                    for campo in ("assunto_id", "disciplina", "frente", "nome", "descricao", "aula")
+                ]
+        else:
+            abrir_formulario = True
+    elif request.GET.get("editar"):
+        assunto_em_edicao = get_object_or_404(
+            Assunto, pk=request.GET["editar"], frente__in=frentes_permitidas
+        )
+        form = AssuntoForm(instance=assunto_em_edicao, usuario=usuario)
         abrir_formulario = True
     else:
         form = AssuntoForm(usuario=usuario)
@@ -82,6 +153,10 @@ def planejamento(request):
             "disciplinas": disciplinas,
             "form": form,
             "abrir_formulario": abrir_formulario,
+            "assunto_em_edicao": assunto_em_edicao,
+            "num_questoes_edicao": assunto_em_edicao.questoes.count() if assunto_em_edicao else 0,
+            "conflito": conflito,
+            "dados_reenvio": dados_reenvio,
             "sem_frentes_atribuidas": not usuario.is_superuser
             and not frentes_permitidas.exists(),
         },
@@ -226,42 +301,6 @@ def estatisticas(request):
             "barra_origem": barra_origem,
             "barra_cobertura": barra_cobertura,
         },
-    )
-
-
-@login_required
-@user_passes_test(lambda usuario: usuario.is_superuser, login_url="core:painel")
-def gerenciar_professores(request):
-    """
-    Só a coordenação (superusuários) acessa esta página: lista cada
-    professor com as frentes que ele tem hoje, e permite editar essa
-    atribuição pelo mesmo tipo de modal usado no cadastro de assunto.
-
-    Cada professor tem seu próprio formulário/modal na página — como
-    são poucos, não compensa a complexidade de um formset; o POST
-    simplesmente troca as frentes daquele professor pelas que vieram
-    marcadas (`frentes_atribuidas.set(...)`).
-    """
-    if request.method == "POST":
-        professor = get_object_or_404(
-            Usuario, pk=request.POST.get("professor_id"), is_superuser=False
-        )
-        ids_selecionados = request.POST.getlist("frentes")
-        professor.frentes_atribuidas.set(Frente.objects.filter(pk__in=ids_selecionados))
-        messages.success(request, f"Frentes de {professor.username} atualizadas.")
-        return redirect("core:professores")
-
-    professores = (
-        Usuario.objects.filter(is_superuser=False)
-        .order_by("username")
-        .prefetch_related("frentes_atribuidas__disciplina")
-    )
-    disciplinas = Disciplina.objects.prefetch_related("frentes").order_by("nome")
-
-    return render(
-        request,
-        "questoes/professores.html",
-        {"professores": professores, "disciplinas": disciplinas},
     )
 
 

@@ -31,7 +31,7 @@ Todas as telas ficam no painel logado (menu lateral):
 | **Ver estatísticas** | todos | Painel de uma tela só: totais de questões e aulas, ranking e percentual de questões por disciplina, origem das questões e cobertura de conteúdo |
 | **Ver planejamento** | cada professor vê só as suas frentes | Assuntos cadastrados por disciplina/frente e aula, com contagem de questões; cadastro de assunto em janela modal |
 | **Colaboradores** | todos | Cards com foto, nome e função (Coordenador ou Professor de …) de cada pessoa |
-| **Gerenciar professores** | só coordenação | Define quais frentes cada professor pode ver e cadastrar |
+| **Configurações** | só coordenação | **Modo de manutenção** (liga/desliga na hora) e quais frentes cada professor pode ver e cadastrar |
 | **Ver perfil** | cada pessoa edita o seu | Nome completo, faculdade, foto e descrição — **aparecem impressos no material final** |
 
 ### Disciplinas, frentes e aulas
@@ -52,13 +52,23 @@ Todas as telas ficam no painel logado (menu lateral):
   Herbert de Souza usamos `herbert123`; use a sua); no primeiro login o
   sistema obriga a cadastrar uma senha nova antes de liberar qualquer tela.
 
+#### Modo de manutenção
+
+Em **Configurações → Modo de manutenção**, a coordenação liga e desliga a
+manutenção com um botão (sem deploy e sem mexer no painel da hospedagem).
+Ligada, os professores veem uma página de aviso (HTTP 503); a coordenação
+continua usando o sistema normalmente, por exemplo para repopular dados. A
+tela de login, `/healthz/` e `/admin/` seguem acessíveis. Também dá para
+**forçar** a manutenção pela variável de ambiente `MODO_MANUTENCAO=True`; nesse
+caso o botão avisa e só o painel da hospedagem desliga.
+
 #### Cadastrando um professor novo (pelo `/admin/`)
 
 1. **Autenticação e Autorização → Usuários → Adicionar usuário**: crie o
    usuário (nome interno) com a senha genérica combinada.
 2. **Core → Perfis dos professores → Adicionar**: escolha o usuário, informe o
    **telefone** (com DDD, com ou sem máscara) e marque **Senha provisória**.
-3. Em **Gerenciar professores** (menu do sistema), atribua as frentes dele.
+3. Em **Configurações** (menu do sistema), atribua as frentes dele.
 
 ## Rodando localmente
 

@@ -1,5 +1,6 @@
 from django.contrib.auth import views as auth_views
 from django.urls import path
+from django.views.generic import RedirectView
 
 from questoes import views as questoes_views
 
@@ -60,9 +61,14 @@ urlpatterns = [
         name="colaboradores",
     ),
     path(
+        "painel/configuracoes/",
+        views.configuracoes,
+        name="configuracoes",
+    ),
+    # Endereço antigo da tela de professores (agora dentro de Configurações).
+    path(
         "painel/professores/",
-        questoes_views.gerenciar_professores,
-        name="professores",
+        RedirectView.as_view(pattern_name="core:configuracoes"),
     ),
     path(
         "painel/perfil/",

@@ -93,8 +93,13 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "core.middleware.ManutencaoMiddleware",
     "core.middleware.ForcarTrocaSenhaMiddleware",
 ]
+
+# Modo manutenção: com MODO_MANUTENCAO=True, só a coordenação (superusuário)
+# usa o site; todos os outros veem a página de manutenção (HTTP 503).
+MODO_MANUTENCAO = env_bool("MODO_MANUTENCAO", default=False)
 
 # Login por usuário (coordenação) OU por telefone cadastrado no perfil
 # (professores) — os dois backends são tentados nessa ordem.

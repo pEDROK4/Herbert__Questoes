@@ -1,6 +1,25 @@
 {% extends "core/layout_painel.html" %}
 {% load core_icons %}
 {% block title %}Planejamento — Banco de Questões{% endblock %}
+{% block extra_head %}
+  <style>
+    .link-aula {
+      display: inline-block;
+      min-width: 1.9rem;
+      padding: 0.1rem 0.45rem;
+      border-radius: 6px;
+      text-align: center;
+      font-weight: 600;
+      background: var(--cor-fundo);
+    }
+    .link-aula:hover { background: #eaefff; text-decoration: none; }
+    .botao-perigo { background: var(--cor-erro); }
+    .botao-perigo:hover { background: #8a0019; }
+    .botao-neutro { background: var(--cor-fundo); color: var(--cor-texto); }
+    .botao-neutro:hover { background: var(--cor-borda); }
+  </style>
+{% endblock %}
+
 {% block conteudo_painel %}
   <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
     <div>
@@ -48,7 +67,9 @@
               <tbody>
                 {% for assunto in frente.assuntos.all %}
                   <tr>
-                    <td>{{ assunto.aula }}</td>
+                    <td>
+                      <a href="?editar={{ assunto.pk }}" class="link-aula" title="Editar esta aula">{{ assunto.aula }}</a>
+                    </td>
                     <td>
                       {{ assunto.nome }}
                       {% if assunto.descricao %}
@@ -82,14 +103,23 @@
     <div id="modal-assunto" class="modal-overlay{% if abrir_formulario %} aberto{% endif %}">
       <div class="modal-conteudo cartao">
         <a href="{{ request.path }}" class="modal-fechar" aria-label="Fechar">{% icone "x" 20 %}</a>
-        <h2 style="margin-top: 0; margin-bottom: 1.1rem; font-size: 1.1rem;">Cadastrar assunto</h2>
+        <h2 style="margin-top: 0; margin-bottom: 1.1rem; font-size: 1.1rem;">
+          {% if assunto_em_edicao %}Editar aula {{ assunto_em_edicao.aula }}{% else %}Cadastrar assunto{% endif %}
+        </h2>
 
         <form method="post" action="{{ request.path }}" id="form-assunto">
           {% csrf_token %}
+          {% if assunto_em_edicao %}<input type="hidden" name="assunto_id" value="{{ assunto_em_edicao.pk }}">{% endif %}
 
           {% for erro in form.non_field_errors %}
             <div class="alerta alerta-erro">{{ erro }}</div>
           {% endfor %}
+
+          <div class="campo">
+            <label for="{{ form.disciplina.id_for_label }}">{{ form.disciplina.label }}</label>
+            {{ form.disciplina }}
+            {% for erro in form.disciplina.errors %}<span class="erro">{{ erro }}</span>{% endfor %}
+          </div>
 
           <div class="campo">
             <label for="{{ form.frente.id_for_label }}">{{ form.frente.label }}</label>
@@ -116,43 +146,128 @@
             {% for erro in form.aula.errors %}<span class="erro">{{ erro }}</span>{% endfor %}
           </div>
 
-          <button type="submit">Salvar assunto</button>
+          <div style="display: flex; gap: 0.75rem; align-items: center;">
+            <button type="submit">Salvar</button>
+            {% if assunto_em_edicao %}
+              <a href="#modal-excluir" class="botao botao-perigo">Excluir</a>
+            {% endif %}
+          </div>
         </form>
       </div>
     </div>
 
+    {% if assunto_em_edicao %}
+      <div id="modal-excluir" class="modal-overlay">
+        <div class="modal-conteudo pequeno cartao">
+          <a href="?editar={{ assunto_em_edicao.pk }}" class="modal-fechar" aria-label="Fechar">{% icone "x" 20 %}</a>
+          {% if num_questoes_edicao %}
+            <h2 style="margin-top: 0; margin-bottom: 0.6rem; font-size: 1.05rem;">Não é possível excluir</h2>
+            <p class="texto-suave" style="margin-top: 0;">
+              A aula {{ assunto_em_edicao.aula }} ("{{ assunto_em_edicao.nome }}") já tem
+              {{ num_questoes_edicao }} questão(ões) cadastrada(s). Remova ou mova essas questões antes de excluir a aula.
+            </p>
+            <a href="?editar={{ assunto_em_edicao.pk }}" class="botao botao-neutro" style="margin-top: 0.6rem;">Voltar</a>
+          {% else %}
+            <h2 style="margin-top: 0; margin-bottom: 0.6rem; font-size: 1.05rem;">Excluir aula?</h2>
+            <p class="texto-suave" style="margin-top: 0;">
+              Tem certeza que deseja excluir a aula {{ assunto_em_edicao.aula }} ("{{ assunto_em_edicao.nome }}")?
+              Essa ação não pode ser desfeita.
+            </p>
+            <div style="display: flex; gap: 0.75rem; margin-top: 1.1rem;">
+              <a href="?editar={{ assunto_em_edicao.pk }}" class="botao botao-neutro">Cancelar</a>
+              <form method="post" action="{{ request.path }}" style="margin: 0;">
+                {% csrf_token %}
+                <input type="hidden" name="acao" value="excluir">
+                <input type="hidden" name="assunto_id" value="{{ assunto_em_edicao.pk }}">
+                <button type="submit" class="botao-perigo">Excluir</button>
+              </form>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
+
+    {% if conflito %}
+      <div id="modal-substituir" class="modal-overlay aberto">
+        <div class="modal-conteudo pequeno cartao">
+          <a href="{{ request.path }}" class="modal-fechar" aria-label="Fechar">{% icone "x" 20 %}</a>
+          <h2 style="margin-top: 0; margin-bottom: 0.6rem; font-size: 1.05rem;">Substituir a aula {{ conflito.aula }}?</h2>
+          <p class="texto-suave" style="margin-top: 0;">
+            Já existe no seu planejamento uma aula de número {{ conflito.aula }}
+            ("{{ conflito.nome }}"). Tem certeza que deseja substituí-la? A aula atual será apagada.
+          </p>
+          <div style="display: flex; gap: 0.75rem; margin-top: 1.1rem;">
+            <a href="{{ request.path }}" class="botao botao-neutro">Cancelar</a>
+            <form method="post" action="{{ request.path }}" style="margin: 0;">
+              {% csrf_token %}
+              <input type="hidden" name="confirmar_substituicao" value="1">
+              {% for nome, valor in dados_reenvio %}
+                <input type="hidden" name="{{ nome }}" value="{{ valor }}">
+              {% endfor %}
+              <button type="submit" class="botao-perigo">Substituir</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
     <script>
       (function () {
+        var selectDisciplina = document.getElementById("{{ form.disciplina.id_for_label }}");
         var selectFrente = document.getElementById("{{ form.frente.id_for_label }}");
         var selectAula = document.getElementById("{{ form.aula.id_for_label }}");
         var ajuda = document.getElementById("ajuda-limite-aula");
-        if (!selectFrente || !selectAula) return;
+        if (!selectDisciplina || !selectFrente || !selectAula) return;
 
-        function limiteDaFrenteSelecionada() {
-          var opcao = selectFrente.options[selectFrente.selectedIndex];
-          var limite = opcao && opcao.getAttribute("data-limite-aula");
-          return limite ? parseInt(limite, 10) : 30;
+        // Guarda todas as frentes uma vez; a cada troca de disciplina o
+        // select de frente é remontado só com as dela.
+        var todasAsFrentes = Array.prototype.map.call(selectFrente.options, function (opcao) {
+          return {
+            valor: opcao.value,
+            texto: opcao.text,
+            disciplina: opcao.getAttribute("data-disciplina"),
+            limite: opcao.getAttribute("data-limite-aula"),
+          };
+        });
+
+        function filtrarFrentes() {
+          var atual = selectFrente.value;
+          var daDisciplina = todasAsFrentes.filter(function (f) {
+            return f.disciplina === selectDisciplina.value;
+          });
+          selectFrente.innerHTML = "";
+          daDisciplina.forEach(function (f) {
+            var opcao = new Option(f.texto, f.valor);
+            opcao.setAttribute("data-disciplina", f.disciplina);
+            opcao.setAttribute("data-limite-aula", f.limite);
+            if (f.valor === atual) opcao.selected = true;
+            selectFrente.add(opcao);
+          });
+          if (!selectFrente.value && selectFrente.options.length) selectFrente.selectedIndex = 0;
+          aplicarLimite();
         }
 
         function aplicarLimite() {
-          var limite = limiteDaFrenteSelecionada();
-          var aulaSelecionadaAindaValida = true;
+          var opcao = selectFrente.options[selectFrente.selectedIndex];
+          var limite = opcao && opcao.getAttribute("data-limite-aula");
+          limite = limite ? parseInt(limite, 10) : 30;
+          var aulaAindaValida = true;
 
-          Array.prototype.forEach.call(selectAula.options, function (opcao) {
-            if (!opcao.value) return;
-            var numero = parseInt(opcao.value, 10);
-            var desabilitada = numero > limite;
-            opcao.hidden = desabilitada;
-            opcao.disabled = desabilitada;
-            if (desabilitada && opcao.selected) aulaSelecionadaAindaValida = false;
+          Array.prototype.forEach.call(selectAula.options, function (o) {
+            if (!o.value) return;
+            var fora = parseInt(o.value, 10) > limite;
+            o.hidden = fora;
+            o.disabled = fora;
+            if (fora && o.selected) aulaAindaValida = false;
           });
 
-          if (!aulaSelecionadaAindaValida) selectAula.value = "1";
-          ajuda.textContent = "Esta disciplina vai até a aula " + limite + ".";
+          if (!aulaAindaValida) selectAula.value = "";
+          ajuda.textContent = "Esta frente vai até a aula " + limite + ".";
         }
 
+        selectDisciplina.addEventListener("change", filtrarFrentes);
         selectFrente.addEventListener("change", aplicarLimite);
-        if (selectFrente.value) aplicarLimite();
+        filtrarFrentes();
       })();
     </script>
   {% endif %}

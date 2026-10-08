@@ -126,3 +126,34 @@ class PerfilProfessor(models.Model):
         # cadastrado dariam choque na constraint de unicidade.
         self.telefone = re.sub(r"\D", "", self.telefone) or None if self.telefone else None
         super().save(*args, **kwargs)
+
+
+class ConfiguracaoSistema(models.Model):
+    """
+    Configurações gerais do sistema que a coordenação liga/desliga pela
+    tela "Configurações", sem precisar mexer no painel da hospedagem nem
+    fazer deploy. Existe uma única linha (pk=1) — use `carregar()`.
+    """
+
+    manutencao_ativa = models.BooleanField(
+        default=False,
+        help_text="Com a manutenção ligada, só a coordenação usa o site; "
+        "todos os outros veem a página de manutenção.",
+    )
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Configuração do sistema"
+        verbose_name_plural = "Configurações do sistema"
+
+    def __str__(self):
+        return "Configurações do sistema"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def carregar(cls):
+        configuracao, _ = cls.objects.get_or_create(pk=1)
+        return configuracao

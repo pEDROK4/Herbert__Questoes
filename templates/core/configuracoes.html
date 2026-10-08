@@ -1,0 +1,153 @@
+{% extends "core/layout_painel.html" %}
+{% load core_icons %}
+{% block title %}Configurações — Banco de Questões{% endblock %}
+
+{% block extra_head %}
+  <style>
+    fieldset { border: none; padding: 0; margin: 0 0 1.1rem; }
+    fieldset legend { font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem; padding: 0; }
+    .lista-frentes label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: normal;
+      margin-bottom: 0.4rem;
+    }
+    .lista-frentes input[type=checkbox] { width: auto; }
+    .botao-perigo { background: var(--cor-erro); }
+    .botao-perigo:hover { background: #8a0019; }
+    .botao-neutro { background: var(--cor-fundo); color: var(--cor-texto); }
+    .botao-neutro:hover { background: var(--cor-borda); }
+    .badge-ligado { background: #fbe9ec; color: var(--cor-erro); }
+    .badge-desligado { background: #e6f7ec; color: var(--cor-sucesso); }
+  </style>
+{% endblock %}
+
+{% block conteudo_painel %}
+  <h1 style="font-size: 1.4rem; margin-top: 0; margin-bottom: 0.15rem;">Configurações</h1>
+  <p class="texto-suave" style="margin-top: 0;">Só a coordenação acessa esta página.</p>
+
+  {% for message in messages %}
+    <div class="alerta alerta-sucesso">{{ message }}</div>
+  {% endfor %}
+
+  <section class="cartao" style="padding: 1.25rem; margin-top: 1.5rem; max-width: 760px;">
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+      <h2 style="margin: 0; font-size: 1.05rem;">Modo de manutenção</h2>
+      {% if manutencao_ativa %}
+        <span class="badge badge-ligado">Ligado</span>
+      {% else %}
+        <span class="badge badge-desligado">Desligado</span>
+      {% endif %}
+    </div>
+    <p class="texto-suave" style="margin: 0.6rem 0 1rem;">
+      Com a manutenção ligada, <strong>todos os professores veem uma página de aviso</strong> e não conseguem
+      usar o sistema. A coordenação continua entrando e usando tudo normalmente — útil para
+      cadastrar dados ou ajustar o sistema sem ninguém por perto.
+    </p>
+
+    {% if manutencao_forcada %}
+      <div class="alerta alerta-info">
+        A manutenção está <strong>forçada</strong> pela variável de ambiente <code>MODO_MANUTENCAO</code>
+        do servidor. Para desligá-la, remova essa variável no painel da hospedagem.
+      </div>
+    {% elif manutencao_ativa %}
+      <form method="post" action="{{ request.path }}" style="margin: 0;">
+        {% csrf_token %}
+        <input type="hidden" name="acao" value="manutencao">
+        <input type="hidden" name="ligar" value="0">
+        <button type="submit">Desligar manutenção</button>
+      </form>
+    {% else %}
+      <a href="#modal-manutencao" class="botao botao-perigo">Ligar manutenção</a>
+    {% endif %}
+  </section>
+
+  <div id="modal-manutencao" class="modal-overlay">
+    <div class="modal-conteudo pequeno cartao">
+      <a href="{{ request.path }}" class="modal-fechar" aria-label="Fechar">{% icone "x" 20 %}</a>
+      <h2 style="margin-top: 0; margin-bottom: 0.6rem; font-size: 1.05rem;">Ligar o modo de manutenção?</h2>
+      <p class="texto-suave" style="margin-top: 0;">
+        Os professores deixam de conseguir usar o sistema até você desligar. Você continua com acesso total.
+      </p>
+      <div style="display: flex; gap: 0.75rem; margin-top: 1.1rem;">
+        <a href="{{ request.path }}" class="botao botao-neutro">Cancelar</a>
+        <form method="post" action="{{ request.path }}" style="margin: 0;">
+          {% csrf_token %}
+          <input type="hidden" name="acao" value="manutencao">
+          <input type="hidden" name="ligar" value="1">
+          <button type="submit" class="botao-perigo">Ligar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <h2 style="font-size: 1.05rem; margin: 2rem 0 0.15rem;">Professores e frentes</h2>
+  <p class="texto-suave" style="margin-top: 0;">
+    Escolha quais frentes cada professor pode ver e cadastrar conteúdo.
+  </p>
+
+  <table class="tabela-planejamento cartao" style="margin-top: 1.5rem; padding: 0.25rem;">
+    <thead>
+      <tr>
+        <th>Professor</th>
+        <th>Frentes atribuídas</th>
+        <th style="width: 6rem;"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for professor in professores %}
+        <tr>
+          <td>{{ professor.username }}</td>
+          <td>
+            {% for frente in professor.frentes_atribuidas.all %}
+              <span class="badge badge-neutro">{{ frente.disciplina.nome }} — {{ frente.nome }}</span>
+            {% empty %}
+              <span class="texto-suave">Nenhuma frente atribuída</span>
+            {% endfor %}
+          </td>
+          <td>
+            <a href="#modal-professor-{{ professor.pk }}" class="botao">Editar</a>
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="3" class="texto-suave">Nenhum professor cadastrado ainda.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% for professor in professores %}
+    <div id="modal-professor-{{ professor.pk }}" class="modal-overlay">
+      <div class="modal-conteudo cartao">
+        <a href="{{ request.path }}" class="modal-fechar" aria-label="Fechar">{% icone "x" 20 %}</a>
+        <h2 style="margin-top: 0; margin-bottom: 1.1rem; font-size: 1.1rem;">
+          Frentes de {{ professor.username }}
+        </h2>
+
+        <form method="post" action="{{ request.path }}">
+          {% csrf_token %}
+          <input type="hidden" name="professor_id" value="{{ professor.pk }}">
+
+          {% for disciplina in disciplinas %}
+            <fieldset>
+              <legend>{{ disciplina.nome }}</legend>
+              <div class="lista-frentes">
+                {% for frente in disciplina.frentes.all %}
+                  <label>
+                    <input type="checkbox" name="frentes" value="{{ frente.pk }}"
+                      {% if frente in professor.frentes_atribuidas.all %}checked{% endif %}>
+                    {{ frente.nome }}
+                  </label>
+                {% endfor %}
+              </div>
+            </fieldset>
+          {% endfor %}
+
+          <button type="submit">Salvar</button>
+        </form>
+      </div>
+    </div>
+  {% endfor %}
+{% endblock %}

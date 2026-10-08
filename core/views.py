@@ -1,9 +1,10 @@
 import calendar
 from datetime import date, timedelta
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model, update_session_auth_hash
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.forms import SetPasswordForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
@@ -14,8 +15,11 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.generic import TemplateView
 
+from questoes.models import Disciplina, Frente
+
 from .forms import EventoForm, PerfilForm
-from .models import Evento, PerfilProfessor
+from .middleware import manutencao_ativa
+from .models import ConfiguracaoSistema, Evento, PerfilProfessor
 
 
 def raiz(request):
@@ -189,6 +193,59 @@ def colaboradores(request):
     ]
 
     return render(request, "core/colaboradores.html", {"cartoes": cartoes})
+
+
+@login_required
+@user_passes_test(lambda usuario: usuario.is_superuser, login_url="core:painel")
+def configuracoes(request):
+    """
+    Tela só da coordenação (superusuários) com duas áreas:
+
+    1. Modo de manutenção: liga/desliga, na hora, a página de manutenção
+       para todo mundo que não é coordenação (sem deploy nem painel da
+       hospedagem). A coordenação continua usando o site normalmente.
+    2. Professores e frentes: quais frentes cada professor pode ver e
+       cadastrar. Cada professor tem seu próprio modal/formulário — o POST
+       troca as frentes daquele professor pelas que vieram marcadas
+       (`frentes_atribuidas.set(...)`).
+    """
+    if request.method == "POST":
+        if request.POST.get("acao") == "manutencao":
+            configuracao = ConfiguracaoSistema.carregar()
+            configuracao.manutencao_ativa = request.POST.get("ligar") == "1"
+            configuracao.save()
+            if configuracao.manutencao_ativa:
+                messages.success(request, "Modo de manutenção ligado.")
+            else:
+                messages.success(request, "Modo de manutenção desligado.")
+            return redirect("core:configuracoes")
+
+        professor = get_object_or_404(
+            get_user_model(), pk=request.POST.get("professor_id"), is_superuser=False
+        )
+        ids_selecionados = request.POST.getlist("frentes")
+        professor.frentes_atribuidas.set(Frente.objects.filter(pk__in=ids_selecionados))
+        messages.success(request, f"Frentes de {professor.username} atualizadas.")
+        return redirect("core:configuracoes")
+
+    professores = (
+        get_user_model()
+        .objects.filter(is_superuser=False)
+        .order_by("username")
+        .prefetch_related("frentes_atribuidas__disciplina")
+    )
+    disciplinas = Disciplina.objects.prefetch_related("frentes").order_by("nome")
+
+    return render(
+        request,
+        "core/configuracoes.html",
+        {
+            "professores": professores,
+            "disciplinas": disciplinas,
+            "manutencao_ativa": manutencao_ativa(),
+            "manutencao_forcada": settings.MODO_MANUTENCAO,
+        },
+    )
 
 
 def _semana_com_barras(semana_datas, eventos_da_semana, mes_atual, hoje, dia_selecionado):
