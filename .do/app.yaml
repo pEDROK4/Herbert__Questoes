@@ -1,19 +1,27 @@
-# Especificação opcional do App Platform (App Spec).
+# Especificação opcional do App Platform (App Spec) do Banco de Questões.
 #
-# Você NÃO precisa deste arquivo para publicar: dá para criar o app
-# clicando pelo painel, como no passo a passo que já vimos. Ele existe
-# para quem preferir versionar a configuração do app junto com o
-# código, ou recriar o app do zero rapidamente.
+# Este projeto é um molde: cada cursinho/instituição que o usar roda na
+# PRÓPRIA conta do DigitalOcean (app, banco e Space próprios). Por isso
+# todos os valores abaixo são placeholders (SEU_/TROQUE_) — nada aqui
+# aponta para a infraestrutura de quem criou o projeto.
 #
-# Ajuste "repo" para o seu usuário/organização e repositório antes de
-# usar. Depois é só: painel > Create > Apps > Edit Your App Spec, ou
-# `doctl apps create --spec .do/app.yaml` pela CLI.
+# Não é obrigatório: dá para criar o app direto pelo painel. Para usar
+# este arquivo: faça um fork do projeto, troque os placeholders pelos
+# SEUS valores e use painel > Create > Apps > Edit Your App Spec, ou
+# `doctl apps create --spec .do/app.yaml`.
+#
+# Nunca commite chaves reais neste arquivo (ele vai pro Git): deixe os
+# segredos (chave do Django, credenciais do Spaces) em branco aqui e
+# preencha-os no painel do App Platform, marcados como "Encrypt".
+#
+# Depois de cada deploy que mude modelos, rode no Console do app:
+#   python manage.py migrate
 name: cursinho-questoes
 region: nyc
 services:
   - name: web
     github:
-      repo: SEU_USUARIO/SEU_REPOSITORIO
+      repo: SEU_USUARIO/SEU_REPOSITORIO   # o SEU fork deste projeto no GitHub
       branch: main
       deploy_on_push: true
     environment_slug: python
@@ -46,9 +54,15 @@ services:
         value: ""
       - key: SPACES_REGION
         value: "nyc3"
+      # Opcionais: CDN do Space e validade (em segundos) das URLs assinadas.
+      # - key: SPACES_CDN_DOMAIN
+      #   value: ""
+      # - key: SPACES_URL_EXPIRE_SECONDS
+      #   value: "3600"
 
 databases:
   - name: db
     engine: PG
     production: true
+    # Nome do cluster PostgreSQL gerenciado que já existe na sua conta.
     cluster_name: SEU_CLUSTER_JA_CRIADO
