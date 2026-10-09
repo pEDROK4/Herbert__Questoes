@@ -180,3 +180,12 @@ class AssuntoFormCascataTests(TestCase):
         html = str(form["frente"])
         self.assertIn("data-disciplina", html)
         self.assertIn('data-limite-aula="15"', html)
+
+
+class MatematicaBasicaTests(TestCase):
+    def test_disciplina_propria_com_frente_unica_de_30_aulas(self):
+        disciplina = Disciplina.objects.get(nome="Matemática Básica")
+        frentes = list(disciplina.frentes.all())
+        self.assertEqual(len(frentes), 1)
+        self.assertEqual(frentes[0].limite_aula, 30)
+        self.assertEqual(Disciplina.objects.get(nome="Matemática").frentes.count(), 2)

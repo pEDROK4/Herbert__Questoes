@@ -23,8 +23,7 @@ def manutencao_ativa():
 
 class ManutencaoMiddleware:
     """
-    Com a manutenção ligada, todo mundo vê a página de manutenção (HTTP
-    503) — exceto superusuários (coordenação), que continuam usando o site
+    Com a manutenção ligada, todo mundo vê a página de manutenção — exceto superusuários (coordenação), que continuam usando o site
     normalmente pra repopular/ajustar dados. Ficam sempre liberados: a
     tela de login e o logout (pra coordenação conseguir entrar), a raiz "/"
     e /healthz/ (a checagem de saúde da plataforma precisa continuar
@@ -46,9 +45,10 @@ class ManutencaoMiddleware:
             and not request.user.is_superuser
             and manutencao_ativa()
         ):
-            resposta = render(request, "core/manutencao.html", status=503)
-            resposta["Retry-After"] = "3600"
-            return resposta
+            # Status 200 de propósito: a hospedagem (App Platform) troca
+            # qualquer resposta 503 do app pela página genérica dela, e
+            # nossa página de aviso nunca chegaria no professor.
+            return render(request, "core/manutencao.html")
         return self.get_response(request)
 
 

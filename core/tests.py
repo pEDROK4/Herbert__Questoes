@@ -18,26 +18,26 @@ class ModoManutencaoTests(TestCase):
         cls.prof = Usuario.objects.create_user("prof", password="x")
         cls.coord = Usuario.objects.create_superuser("coord", password="x")
 
+    def assertManutencao(self, resposta):
+        self.assertContains(resposta, "Estamos em manutenção")
+
     def test_visitante_ve_pagina_de_manutencao(self):
-        resposta = self.client.get("/painel/")
-        self.assertEqual(resposta.status_code, 503)
-        self.assertContains(resposta, "Estamos em manutenção", status_code=503)
-        self.assertEqual(resposta["Retry-After"], "3600")
+        self.assertManutencao(self.client.get("/painel/"))
 
     def test_professor_logado_ve_manutencao(self):
         self.client.force_login(self.prof)
-        self.assertEqual(self.client.get("/painel/").status_code, 503)
-        self.assertEqual(self.client.get("/painel/planejamento/").status_code, 503)
+        self.assertManutencao(self.client.get("/painel/"))
+        self.assertManutencao(self.client.get("/painel/planejamento/"))
 
     def test_coordenacao_continua_usando_o_site(self):
         self.client.force_login(self.coord)
-        self.assertEqual(self.client.get("/painel/").status_code, 200)
+        self.assertNotContains(self.client.get("/painel/"), "Estamos em manutenção")
 
     def test_login_continua_acessivel_para_a_coordenacao_entrar(self):
         self.assertEqual(self.client.get("/login/").status_code, 200)
         resposta = self.client.post("/login/", {"username": "coord", "password": "x"})
         self.assertEqual(resposta.status_code, 302)
-        self.assertEqual(self.client.get("/painel/").status_code, 200)
+        self.assertNotContains(self.client.get("/painel/"), "Estamos em manutenção")
 
     def test_rotas_de_saude_ficam_liberadas(self):
         self.assertEqual(self.client.get("/healthz/").status_code, 200)
@@ -87,12 +87,12 @@ class ConfiguracoesTests(TestCase):
         # Professor passa a ver a manutenção; coordenação segue normal.
         professor = self.client_class()
         professor.force_login(self.prof)
-        self.assertEqual(professor.get("/painel/").status_code, 503)
-        self.assertEqual(self.client.get("/painel/").status_code, 200)
+        self.assertContains(professor.get("/painel/"), "Estamos em manutenção")
+        self.assertNotContains(self.client.get("/painel/"), "Estamos em manutenção")
 
         self.client.post(self.url, {"acao": "manutencao", "ligar": "0"})
         self.assertFalse(ConfiguracaoSistema.carregar().manutencao_ativa)
-        self.assertEqual(professor.get("/painel/").status_code, 200)
+        self.assertNotContains(professor.get("/painel/"), "Estamos em manutenção")
 
     def test_professor_nao_consegue_ligar_a_manutencao(self):
         self.client.force_login(self.prof)

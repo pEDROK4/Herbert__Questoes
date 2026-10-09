@@ -38,7 +38,7 @@ Todas as telas ficam no painel logado (menu lateral):
 
 - Cada disciplina tem **frentes** (Frente A e B). Em Sociologia/Filosofia
   cada frente é a própria matéria; em Português as frentes são Gramática e
-  Literatura; Redação tem uma frente única.
+  Literatura; Redação e Matemática Básica têm uma frente única.
 - Cada assunto pertence a uma **aula**: de 1 a 30, ou de 1 a 15 em
   Sociologia/Filosofia e Português.
 - O professor só vê e cadastra assuntos/questões das frentes atribuídas a ele.
@@ -56,7 +56,7 @@ Todas as telas ficam no painel logado (menu lateral):
 
 Em **Configurações → Modo de manutenção**, a coordenação liga e desliga a
 manutenção com um botão (sem deploy e sem mexer no painel da hospedagem).
-Ligada, os professores veem uma página de aviso (HTTP 503); a coordenação
+Ligada, os professores veem uma página de aviso; a coordenação
 continua usando o sistema normalmente, por exemplo para repopular dados. A
 tela de login, `/healthz/` e `/admin/` seguem acessíveis. Também dá para
 **forçar** a manutenção pela variável de ambiente `MODO_MANUTENCAO=True`; nesse
