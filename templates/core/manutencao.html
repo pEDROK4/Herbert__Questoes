@@ -6,7 +6,10 @@
     O sistema está passando por uma atualização e volta a funcionar em breve.
     Obrigado pela paciência!
   </p>
-  <p style="text-align: center; margin: 1.5rem 0 0; font-size: 0.85rem;" class="texto-suave">
-    Coordenação? <a href="{% url 'core:login' %}">Entrar</a>
-  </p>
+  {% if user.is_authenticated %}
+    <form method="post" action="{% url 'core:logout' %}" style="margin: 1.5rem 0 0;">
+      {% csrf_token %}
+      <button type="submit" style="width: 100%; background: var(--cor-erro);">Sair</button>
+    </form>
+  {% endif %}
 {% endblock %}

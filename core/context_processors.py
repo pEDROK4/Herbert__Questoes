@@ -40,3 +40,17 @@ def menu_lateral(request):
         if not so_coordenador or eh_coordenador
     ]
     return {"menu_lateral": itens}
+
+
+def nome_usuario(request):
+    """
+    `nome_usuario` (nome completo cadastrado no perfil) e `primeiro_nome`
+    pra mostrar no lugar do login técnico (prof_bio1, prof_mat3...). Se a
+    pessoa ainda não preencheu o perfil, cai pro nome de usuário.
+    """
+    usuario = request.user
+    if not usuario.is_authenticated:
+        return {}
+    perfil = getattr(usuario, "perfil", None)
+    nome = ((perfil.nome_completo if perfil else "") or "").strip() or usuario.get_username()
+    return {"nome_usuario": nome, "primeiro_nome": nome.split()[0]}

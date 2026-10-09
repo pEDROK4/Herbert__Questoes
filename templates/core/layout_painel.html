@@ -21,7 +21,7 @@
       </nav>
 
       <div style="padding: 1rem 1.25rem; border-top: 1px solid var(--cor-borda); font-size: 0.85rem;">
-        <div style="margin-bottom: 0.4rem;">{{ user }}</div>
+        <div style="margin-bottom: 0.4rem; overflow-wrap: anywhere;" title="{{ nome_usuario }}">{{ nome_usuario }}</div>
         <form method="post" action="{% url 'core:logout' %}">
           {% csrf_token %}
           <button type="submit"

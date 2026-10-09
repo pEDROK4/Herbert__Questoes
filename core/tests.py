@@ -6,7 +6,7 @@ from django.test import TestCase, override_settings
 
 from questoes.models import Frente
 
-from .models import ConfiguracaoSistema
+from .models import ConfiguracaoSistema, PerfilProfessor
 
 Usuario = get_user_model()
 
@@ -119,3 +119,43 @@ class ConfiguracoesTests(TestCase):
             ConfiguracaoSistema.objects, "filter", side_effect=OperationalError("sem tabela")
         ):
             self.assertEqual(self.client.get("/painel/").status_code, 200)
+
+
+class NomeDeExibicaoTests(TestCase):
+    def test_menu_e_saudacao_mostram_o_nome_cadastrado_e_nao_o_login(self):
+        prof = Usuario.objects.create_user("prof_bio1", password="x")
+        PerfilProfessor.objects.create(usuario=prof, nome_completo="Maria da Silva Souza")
+        self.client.force_login(prof)
+        resposta = self.client.get("/painel/")
+        self.assertContains(resposta, "Maria da Silva Souza")
+        self.assertContains(resposta, "Olá, Maria")
+        self.assertNotContains(resposta, "prof_bio1")
+
+    def test_sem_perfil_preenchido_usa_o_nome_de_usuario(self):
+        prof = Usuario.objects.create_user("prof_mat3", password="x")
+        self.client.force_login(prof)
+        resposta = self.client.get("/painel/")
+        self.assertContains(resposta, "Olá, prof_mat3")
+
+
+@override_settings(MODO_MANUTENCAO=True)
+class BotaoSairNaManutencaoTests(TestCase):
+    def test_professor_logado_ve_botao_sair_e_nao_o_link_de_entrar(self):
+        prof = Usuario.objects.create_user("prof", password="x")
+        self.client.force_login(prof)
+        resposta = self.client.get("/painel/")
+        self.assertContains(resposta, 'action="/logout/"')
+        self.assertContains(resposta, ">Sair<")
+        self.assertNotContains(resposta, "Coordenação?")
+
+    def test_sair_encerra_a_sessao(self):
+        prof = Usuario.objects.create_user("prof", password="x")
+        self.client.force_login(prof)
+        resposta = self.client.post("/logout/")
+        self.assertEqual(resposta.status_code, 302)
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_visitante_sem_login_nao_ve_botao_nem_link(self):
+        resposta = self.client.get("/painel/")
+        self.assertNotContains(resposta, ">Sair<")
+        self.assertNotContains(resposta, "Coordenação?")
